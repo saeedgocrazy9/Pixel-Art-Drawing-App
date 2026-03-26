@@ -1,0 +1,77 @@
+#editor {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  width: 100%;
+}
+
+#editor h1 {
+  font-size: 2rem;
+  letter-spacing: 2px;
+  color: #e94560;
+}
+
+#editor h2 {
+  font-size: 1rem;
+  color: #aaa;
+  font-weight: 400;
+}
+
+#options {
+  display: flex;
+  gap: 24px;
+}
+
+.option {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.option label {
+  font-size: 0.8rem;
+  color: #aaa;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.panelInput {
+  width: 70px;
+  padding: 8px;
+  text-align: center;
+  background: #16213e;
+  border: 1px solid #e94560;
+  color: #fff;
+  border-radius: 6px;
+  font-size: 1rem;
+}
+
+.button {
+  padding: 10px 32px;
+  background: #e94560;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  cursor: pointer;
+  letter-spacing: 1px;
+  transition: background 0.2s;
+}
+
+.button:hover {
+  background: #c73652;
+}
+
+.color-picker-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+
+.color-picker-wrapper p {
+  font-size: 0.9rem;
+  color: #aaa;
+}
