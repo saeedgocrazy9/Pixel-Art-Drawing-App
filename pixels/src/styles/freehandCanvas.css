@@ -1,0 +1,348 @@
+.freehand-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+  width: 100%;
+  max-width: 1200px;
+  padding: 0;
+}
+
+.freehand-header {
+  text-align: center;
+  width: 100%;
+}
+
+.freehand-header h1 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 8px;
+  letter-spacing: -0.5px;
+}
+
+.freehand-header h1 svg {
+  color: #e94560;
+}
+
+.freehand-header p {
+  font-size: 1rem;
+  color: #aaa;
+  letter-spacing: 0.3px;
+}
+
+.freehand-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  width: 100%;
+  padding: 24px;
+  background: linear-gradient(135deg, #16213e 0%, #1a2633 100%);
+  border-radius: 12px;
+  border: 2px solid #404d6f;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.control-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.section-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #e94560;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.section-label svg {
+  color: #e94560;
+}
+
+.color-input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.color-picker {
+  width: 60px;
+  height: 45px;
+  border: 2px solid #e94560;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.color-picker:hover {
+  border-color: #ff6b7a;
+  box-shadow: 0 0 12px rgba(233, 69, 96, 0.4);
+}
+
+.color-display {
+  flex: 1;
+  height: 45px;
+  border: 2px solid #e94560;
+  border-radius: 8px;
+  transition: all 0.3s;
+}
+
+.color-display:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(233, 69, 96, 0.3);
+}
+
+.brush-select {
+  padding: 10px 14px;
+  background-color: #0f3460;
+  color: #fff;
+  border: 2px solid #404d6f;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 600;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  transition: all 0.3s;
+}
+
+.brush-select:hover {
+  border-color: #e94560;
+  box-shadow: 0 4px 12px rgba(233, 69, 96, 0.2);
+}
+
+.brush-select:focus {
+  outline: none;
+  border-color: #e94560;
+  box-shadow: 0 0 16px rgba(233, 69, 96, 0.4);
+}
+
+.brush-select option {
+  background-color: #16213e;
+  color: #fff;
+  padding: 8px;
+}
+
+.size-slider {
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
+  background: linear-gradient(90deg, #404d6f, #e94560);
+  outline: none;
+  cursor: pointer;
+  -webkit-appearance: none;
+}
+
+.size-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #e94560, #ff6b7a);
+  cursor: pointer;
+  border: 3px solid #fff;
+  box-shadow: 0 4px 8px rgba(233, 69, 96, 0.3);
+  transition: all 0.2s;
+}
+
+.size-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 6px 12px rgba(233, 69, 96, 0.4);
+}
+
+.size-slider::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #e94560, #ff6b7a);
+  cursor: pointer;
+  border: 3px solid #fff;
+  box-shadow: 0 4px 8px rgba(233, 69, 96, 0.3);
+  transition: all 0.2s;
+}
+
+.control-actions {
+  display: flex;
+  gap: 8px;
+  grid-column: 1 / -1;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.control-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  background: linear-gradient(135deg, #404d6f, #505d7f);
+  color: #fff;
+  border: 2px solid #e94560;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s;
+  font-weight: 600;
+}
+
+.control-btn:hover:not(.disabled) {
+  background: linear-gradient(135deg, #e94560, #ff6b7a);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 16px rgba(233, 69, 96, 0.4);
+}
+
+.control-btn:active:not(.disabled) {
+  transform: translateY(-1px);
+}
+
+.control-btn.disabled {
+  background: #404d6f;
+  color: #666;
+  border-color: #666;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.control-btn.danger {
+  border-color: #ff4757;
+}
+
+.control-btn.danger:hover:not(.disabled) {
+  background: linear-gradient(135deg, #ff4757, #ff6b7a);
+  border-color: #ff4757;
+  box-shadow: 0 8px 16px rgba(255, 71, 87, 0.4);
+}
+
+.control-btn.success {
+  border-color: #2ed573;
+}
+
+.control-btn.success:hover {
+  background: linear-gradient(135deg, #2ed573, #26de81);
+  border-color: #2ed573;
+  box-shadow: 0 8px 16px rgba(46, 213, 115, 0.4);
+}
+
+.brush-preview-section {
+  width: 100%;
+  padding: 16px 24px;
+  background: linear-gradient(135deg, #16213e 0%, #1a2633 100%);
+  border-radius: 12px;
+  border: 2px solid #404d6f;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.preview-label {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #e94560;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+.brush-preview {
+  border: 2px solid #404d6f;
+  border-radius: 8px;
+  background-color: #1a1a2e;
+  flex: 1;
+  max-width: 300px;
+  transition: all 0.3s;
+}
+
+.brush-preview:hover {
+  border-color: #e94560;
+  box-shadow: 0 4px 12px rgba(233, 69, 96, 0.2);
+}
+
+.drawing-canvas {
+  border: 3px solid #e94560;
+  border-radius: 16px;
+  cursor: crosshair;
+  background-color: #1a1a2e;
+  display: block;
+  touch-action: none;
+  user-select: none;
+  width: 100%;
+  max-width: 1100px;
+  height: 550px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+  transition: all 0.3s;
+}
+
+.drawing-canvas:hover {
+  border-color: #ff6b7a;
+  box-shadow: 0 16px 48px rgba(233, 69, 96, 0.25);
+}
+
+@media (max-width: 768px) {
+  .freehand-container {
+    gap: 16px;
+  }
+
+  .freehand-header h1 {
+    font-size: 1.8rem;
+  }
+
+  .freehand-header p {
+    font-size: 0.9rem;
+  }
+
+  .freehand-controls {
+    grid-template-columns: 1fr;
+    padding: 16px;
+    gap: 12px;
+  }
+
+  .control-actions {
+    grid-column: 1;
+  }
+
+  .control-btn {
+    width: 44px;
+    height: 44px;
+  }
+
+  .brush-preview-section {
+    flex-direction: column;
+    padding: 12px;
+  }
+
+  .brush-preview {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .drawing-canvas {
+    height: 400px;
+  }
+}
+
+@media (max-width: 480px) {
+  .freehand-header h1 {
+    font-size: 1.4rem;
+  }
+
+  .freehand-controls {
+    padding: 12px;
+  }
+
+  .control-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .drawing-canvas {
+    height: 300px;
+    border-radius: 8px;
+  }
+}

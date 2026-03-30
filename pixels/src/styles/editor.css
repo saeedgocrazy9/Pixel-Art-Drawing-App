@@ -2,76 +2,317 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 20px;
+  gap: 28px;
+  width: 100%;
+  max-width: 900px;
+  animation: fadeIn 0.5s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.editor-header {
+  text-align: center;
   width: 100%;
 }
 
-#editor h1 {
-  font-size: 2rem;
-  letter-spacing: 2px;
+.editor-header h1 {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  font-size: 2.5rem;
+  letter-spacing: -0.5px;
+  color: #fff;
+  margin-bottom: 8px;
+  font-weight: 700;
+}
+
+.editor-header h1 svg {
   color: #e94560;
 }
 
-#editor h2 {
+.editor-header p {
   font-size: 1rem;
   color: #aaa;
-  font-weight: 400;
+  letter-spacing: 0.3px;
+}
+
+.setup-section {
+  width: 100%;
+  padding: 28px;
+  background: linear-gradient(135deg, #16213e 0%, #1a2633 100%);
+  border-radius: 12px;
+  border: 2px solid #404d6f;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.setup-section h2 {
+  font-size: 1.2rem;
+  color: #e94560;
+  margin-bottom: 20px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 #options {
   display: flex;
   gap: 24px;
+  justify-content: center;
+  flex-wrap: wrap;
 }
 
 .option {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 12px;
+  min-width: 140px;
 }
 
 .option label {
-  font-size: 0.8rem;
-  color: #aaa;
+  font-size: 0.85rem;
+  color: #e94560;
   text-transform: uppercase;
   letter-spacing: 1px;
+  font-weight: 700;
 }
 
 .panelInput {
-  width: 70px;
-  padding: 8px;
+  width: 100px;
+  padding: 12px;
   text-align: center;
-  background: #16213e;
-  border: 1px solid #e94560;
+  background: #0f3460;
+  border: 2px solid #e94560;
   color: #fff;
-  border-radius: 6px;
+  border-radius: 8px;
   font-size: 1rem;
+  font-weight: 600;
+  transition: all 0.3s;
 }
 
-.button {
-  padding: 10px 32px;
-  background: #e94560;
+.panelInput:hover {
+  border-color: #ff6b7a;
+  box-shadow: 0 0 12px rgba(233, 69, 96, 0.3);
+}
+
+.panelInput:focus {
+  outline: none;
+  border-color: #ff6b7a;
+  box-shadow: 0 0 16px rgba(233, 69, 96, 0.4);
+}
+
+.primary-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px 40px;
+  background: linear-gradient(135deg, #e94560 0%, #ff6b7a 100%);
   color: #fff;
   border: none;
-  border-radius: 6px;
+  border-radius: 8px;
   font-size: 1rem;
+  font-weight: 700;
   cursor: pointer;
-  letter-spacing: 1px;
-  transition: background 0.2s;
+  letter-spacing: 0.5px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 8px 20px rgba(233, 69, 96, 0.3);
+  text-transform: uppercase;
 }
 
-.button:hover {
-  background: #c73652;
+.primary-button:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 28px rgba(233, 69, 96, 0.4);
 }
 
-.color-picker-wrapper {
+.primary-button:active {
+  transform: translateY(-2px);
+}
+
+/* Undo/Redo Section */
+.undo-redo-section {
+  width: 100%;
+  padding: 16px 24px;
+  background: linear-gradient(135deg, #16213e 0%, #1a2633 100%);
+  border-radius: 12px;
+  border: 2px solid #404d6f;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  animation: slideDown 0.4s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.undo-redo-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background: linear-gradient(135deg, #404d6f, #505d7f);
+  color: #fff;
+  border: 2px solid #e94560;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 700;
+  transition: all 0.3s;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.undo-redo-btn:hover:not(.disabled) {
+  background: linear-gradient(135deg, #e94560, #ff6b7a);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(233, 69, 96, 0.4);
+}
+
+.undo-redo-btn:active:not(.disabled) {
+  transform: translateY(0);
+}
+
+.undo-redo-btn.disabled {
+  background: #404d6f;
+  color: #666;
+  border-color: #666;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.undo-redo-btn.clear-btn {
+  border-color: #ff4757;
+}
+
+.undo-redo-btn.clear-btn:hover:not(.disabled) {
+  background: linear-gradient(135deg, #ff4757, #ff6b7a);
+  border-color: #ff4757;
+  box-shadow: 0 6px 16px rgba(255, 71, 87, 0.4);
+}
+
+.history-info {
+  padding: 8px 16px;
+  background-color: rgba(233, 69, 96, 0.1);
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: #e94560;
+  font-weight: 700;
+  border: 1px solid #e94560;
+  letter-spacing: 0.5px;
+}
+
+.editor-tools {
+  width: 100%;
+  padding: 28px;
+  background: linear-gradient(135deg, #16213e 0%, #1a2633 100%);
+  border-radius: 12px;
+  border: 2px solid #404d6f;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  animation: slideIn 0.4s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.color-picker-section {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: 16px;
 }
 
-.color-picker-wrapper p {
-  font-size: 0.9rem;
-  color: #aaa;
+.color-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 1rem;
+  color: #e94560;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.color-header svg {
+  color: #e94560;
+}
+
+.color-header span {
+  font-size: 1.4rem;
+  margin-left: 8px;
+}
+
+@media (max-width: 768px) {
+  #editor {
+    gap: 16px;
+  }
+
+  .editor-header h1 {
+    font-size: 1.8rem;
+  }
+
+  .setup-section,
+  .editor-tools {
+    padding: 16px;
+  }
+
+  #options {
+    gap: 16px;
+  }
+
+  .option {
+    min-width: 120px;
+  }
+
+  .primary-button {
+    width: 100%;
+    padding: 12px 24px;
+  }
+
+  .undo-redo-section {
+    padding: 12px;
+    gap: 8px;
+  }
+
+  .undo-redo-btn {
+    padding: 8px 14px;
+    font-size: 0.8rem;
+  }
+
+  .undo-redo-btn span {
+    display: none;
+  }
+
+  .history-info {
+    font-size: 0.75rem;
+    padding: 6px 12px;
+  }
 }

@@ -2,13 +2,365 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
+  gap: 24px;
+  width: 100%;
+  margin-top: 24px;
+  animation: slideUp 0.5s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 #pixels {
   display: flex;
   flex-direction: column;
-  border: 2px solid #e94560;
-  border-radius: 4px;
+  border: 3px solid #e94560;
+  border-radius: 12px;
   overflow: hidden;
+  box-shadow: 0 12px 40px rgba(233, 69, 96, 0.2);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#pixels:hover {
+  border-color: #ff6b7a;
+  box-shadow: 0 16px 48px rgba(233, 69, 96, 0.3);
+  transform: translateY(-2px);
+}
+
+/* Export Container */
+.export-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 20px;
+  background: linear-gradient(135deg, rgba(233, 69, 96, 0.05) 0%, rgba(255, 107, 122, 0.05) 100%);
+  border-radius: 12px;
+  border: 2px dashed #e94560;
+}
+
+/* Export Button */
+.export-btn {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 260px;
+  padding: 16px 40px;
+  background: linear-gradient(135deg, #e94560 0%, #ff6b7a 100%);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 1.05rem;
+  font-weight: 700;
+  cursor: pointer;
+  letter-spacing: 0.8px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 10px 28px rgba(233, 69, 96, 0.4);
+  overflow: hidden;
+  text-transform: uppercase;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+}
+
+.export-btn:not(:disabled):hover {
+  transform: translateY(-6px);
+  box-shadow: 0 16px 40px rgba(233, 69, 96, 0.5);
+  padding: 16px 48px;
+}
+
+.export-btn:not(:disabled):active {
+  transform: translateY(-3px);
+}
+
+/* Loading State */
+.export-btn.loading {
+  background: linear-gradient(135deg, #ff9a00 0%, #ffc107 100%);
+  box-shadow: 0 10px 28px rgba(255, 154, 0, 0.4);
+  animation: glow-loading 1.5s ease-in-out infinite;
+}
+
+@keyframes glow-loading {
+  0%, 100% {
+    box-shadow: 0 10px 28px rgba(255, 154, 0, 0.4);
+  }
+  50% {
+    box-shadow: 0 10px 40px rgba(255, 154, 0, 0.6);
+  }
+}
+
+/* Success State */
+.export-btn.success {
+  background: linear-gradient(135deg, #2ed573 0%, #26de81 100%);
+  box-shadow: 0 10px 28px rgba(46, 213, 115, 0.4);
+  animation: pulse-success 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes pulse-success {
+  0% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Error State */
+.export-btn.error {
+  background: linear-gradient(135deg, #ff4757 0%, #ff6b7a 100%);
+  box-shadow: 0 10px 28px rgba(255, 71, 87, 0.4);
+  animation: shake-error 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes shake-error {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-8px);
+  }
+  75% {
+    transform: translateX(8px);
+  }
+}
+
+.export-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.95;
+}
+
+/* Button Content */
+.export-btn-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  position: relative;
+  z-index: 1;
+  width: 100%;
+}
+
+.export-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  animation: iconFade 0.3s ease-out;
+}
+
+@keyframes iconFade {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.export-icon.spinner {
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.export-text {
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  white-space: nowrap;
+  font-size: 1rem;
+}
+
+/* Shine Effect */
+.export-btn-shine {
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.3),
+    transparent
+  );
+  transition: left 0.5s;
+  z-index: 0;
+}
+
+.export-btn:not(:disabled):hover .export-btn-shine {
+  left: 100%;
+  animation: shine 0.5s ease-out;
+}
+
+@keyframes shine {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+/* Notification */
+.export-notification {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-width: 240px;
+  padding: 12px 20px;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  letter-spacing: 0.4px;
+  animation: slideInNotification 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  backdrop-filter: blur(10px);
+}
+
+@keyframes slideInNotification {
+  from {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.notification-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+}
+
+.notification-icon .spinner {
+  animation: spin 0.8s linear infinite;
+}
+
+.notification-text {
+  flex: 1;
+  text-align: center;
+}
+
+/* Loading State */
+.export-notification.loading {
+  background-color: rgba(255, 154, 0, 0.15);
+  color: #ffc107;
+  border: 1.5px solid #ff9a00;
+  box-shadow: 0 4px 12px rgba(255, 154, 0, 0.2);
+}
+
+/* Success State */
+.export-notification.success {
+  background-color: rgba(46, 213, 115, 0.15);
+  color: #2ed573;
+  border: 1.5px solid #26de81;
+  box-shadow: 0 4px 12px rgba(46, 213, 115, 0.2);
+  animation: slideInNotification 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
+             fadeOutNotification 0.4s ease-out 2.1s forwards;
+}
+
+/* Error State */
+.export-notification.error {
+  background-color: rgba(255, 71, 87, 0.15);
+  color: #ff4757;
+  border: 1.5px solid #ff6b7a;
+  box-shadow: 0 4px 12px rgba(255, 71, 87, 0.2);
+  animation: slideInNotification 0.4s cubic-bezier(0.34, 1.56, 0.64, 1),
+             fadeOutNotification 0.4s ease-out 2.6s forwards;
+}
+
+@keyframes fadeOutNotification {
+  to {
+    opacity: 0;
+    transform: translateY(-12px) scale(0.95);
+  }
+}
+
+@media (max-width: 768px) {
+  #drawingPanel {
+    gap: 16px;
+    margin-top: 16px;
+  }
+
+  .export-container {
+    padding: 16px;
+    gap: 12px;
+  }
+
+  .export-btn {
+    min-width: 220px;
+    padding: 14px 32px;
+    font-size: 0.95rem;
+  }
+
+  .export-btn:not(:disabled):hover {
+    min-width: 240px;
+    padding: 14px 40px;
+  }
+
+  .export-icon {
+    width: 24px;
+    height: 24px;
+  }
+
+  .export-text {
+    font-size: 0.95rem;
+  }
+
+  .export-notification {
+    min-width: 200px;
+    padding: 10px 16px;
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .export-btn {
+    width: 100%;
+    min-width: unset;
+    padding: 12px 24px;
+    font-size: 0.9rem;
+  }
+
+  .export-btn:not(:disabled):hover {
+    width: 100%;
+    min-width: unset;
+    padding: 12px 32px;
+  }
+
+  .export-icon {
+    width: 22px;
+    height: 22px;
+  }
+
+  .export-text {
+    font-size: 0.9rem;
+  }
+
+  .export-notification {
+    width: 90%;
+  }
 }
