@@ -1,4 +1,4 @@
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import "./styles/App.css"
 import Editor from "./components/Editor"
 import FreehandCanvas from "./components/FreehandCanvas"
@@ -7,6 +7,16 @@ import { PaletteIcon, PenTool } from "lucide-react"
 
 function App() {
   const [currentPage, setCurrentPage] = useState(1)
+
+  // Listen for navigation events from Chatbot
+  useEffect(() => {
+    const handleNavigate = (event) => {
+      setCurrentPage(event.detail.page)
+    }
+
+    window.addEventListener("navigatePage", handleNavigate)
+    return () => window.removeEventListener("navigatePage", handleNavigate)
+  }, [])
 
   return (
     <div className="App">

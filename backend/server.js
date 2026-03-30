@@ -9,8 +9,8 @@ const app = express()
 app.use(cors())
 app.use(express.json())
 
-const DEEPINFRA_API_KEY = process.env.DEEPINFRA_API_KEY
-const DEEPINFRA_API_URL = "https://api.deepinfra.com/v1/openai/chat/completions"
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY
+const OPENROUTER_API_URL = "https://openrouter.ai/api/v1/chat/completions"
 
 app.post("/api/chat", async (req, res) => {
   try {
@@ -23,16 +23,18 @@ app.post("/api/chat", async (req, res) => {
     console.log("Received request with", messages.length, "messages")
 
     const response = await axios.post(
-      DEEPINFRA_API_URL,
+      OPENROUTER_API_URL,
       {
-        model: "meta-llama/Llama-2-70b-chat-hf",
+        model: "openai/gpt-3.5-turbo",
         messages: messages,
         temperature: 0.7,
         max_tokens: 300
       },
       {
         headers: {
-          Authorization: `Bearer ${DEEPINFRA_API_KEY}`,
+          Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+          "HTTP-Referer": "http://localhost:5173",
+          "X-Title": "PixelArt Studio",
           "Content-Type": "application/json"
         },
         timeout: 30000
@@ -52,12 +54,16 @@ app.post("/api/chat", async (req, res) => {
     let errorMessage = "Failed to get response from AI"
     if (error.response?.status === 401) {
       errorMessage = "API authentication failed - check your API key"
+    } else if (error.response?.status === 404) {
+      errorMessage = "Model not found - please check model name"
     } else if (error.response?.status === 429) {
       errorMessage = "Rate limit exceeded. Please wait a moment"
     } else if (error.code === "ECONNABORTED") {
       errorMessage = "Request timeout. Please try again"
-    } else if (error.message.includes("Network Error")) {
-      errorMessage = "Network error - check your connection"
+    } else if (error.response?.status === 400) {
+      errorMessage = "Bad request - check message format"
+    } else if (error.response?.status === 402) {
+      errorMessage = "Payment required - no free credits available"
     }
 
     res.status(error.response?.status || 500).json({
@@ -75,6 +81,7 @@ app.get("/api/health", (req, res) => {
 const PORT = process.env.PORT || 5000
 app.listen(PORT, () => {
   console.log(`✅ Server running on http://localhost:${PORT}`)
-  console.log(`🔑 API Key loaded: ${DEEPINFRA_API_KEY ? "✅ YES" : "❌ NO"}`)
+  console.log(`🔑 API Key loaded: ${OPENROUTER_API_KEY ? "✅ YES" : "❌ NO"}`)
   console.log(`📍 Chat endpoint: http://localhost:${PORT}/api/chat`)
+  console.log(`🤖 Using model: openai/gpt-3.5-turbo`)
 })

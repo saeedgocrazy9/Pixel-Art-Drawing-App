@@ -15,6 +15,30 @@ import {
 } from "lucide-react"
 import axios from "axios"
 
+// Navigation events for state-based routing
+const navigateToPage = (pageName) => {
+  const pageMap = {
+    "freehand": 2,
+    "freehand drawing": 2,
+    "drawing": 2,
+    "draw": 2,
+    "pixel": 1,
+    "pixel editor": 1,
+    "editor": 1,
+    "home": 1,
+    "main": 1
+  }
+  
+  const pageNum = pageMap[pageName.toLowerCase().trim()]
+  if (pageNum) {
+    // Dispatch custom event that App.jsx can listen to
+    window.dispatchEvent(new CustomEvent("navigatePage", { detail: { page: pageNum } }))
+    console.log(`🚀 Navigating to page: ${pageNum}`)
+    return true
+  }
+  return false
+}
+
 export default function Chatbot() {
   const [isOpen, setIsOpen] = useState(false)
   const [isMinimized, setIsMinimized] = useState(false)
@@ -27,11 +51,12 @@ export default function Chatbot() {
   const [showSettings, setShowSettings] = useState(false)
   const [voiceEnabled, setVoiceEnabled] = useState(true)
   const [error, setError] = useState(null)
+  const [messageCounter, setMessageCounter] = useState(0)
   
   const messagesEndRef = useRef(null)
   const recognitionRef = useRef(null)
+  const isListeningRef = useRef(false)
 
-  // Use backend API instead of direct API call
   const BACKEND_API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api/chat"
 
   // Initialize Speech Recognition
@@ -45,11 +70,12 @@ export default function Chatbot() {
     }
 
     const recognition = new SpeechRecognition()
-    recognition.continuous = true
+    recognition.continuous = false
     recognition.interimResults = true
     recognition.language = "en-US"
 
     recognition.onstart = () => {
+      isListeningRef.current = true
       setIsListening(true)
       setError(null)
     }
@@ -71,10 +97,12 @@ export default function Chatbot() {
     recognition.onerror = (event) => {
       console.error("Speech error:", event.error)
       setError(`Speech error: ${event.error}`)
+      isListeningRef.current = false
       setIsListening(false)
     }
 
     recognition.onend = () => {
+      isListeningRef.current = false
       setIsListening(false)
     }
 
@@ -82,7 +110,7 @@ export default function Chatbot() {
 
     return () => {
       if (recognitionRef.current) {
-        recognitionRef.current.stop()
+        recognitionRef.current.abort()
       }
     }
   }, [isChatbotEnabled])
@@ -91,12 +119,13 @@ export default function Chatbot() {
   useEffect(() => {
     if (isChatbotEnabled && messages.length === 0) {
       const welcomeMessage = {
-        id: 1,
+        id: `msg-${Date.now()}-welcome`,
         text: "Hello! 👋 I'm your PixelArt Studio AI Assistant. You can speak or type to me. How can I help you today?",
         sender: "bot",
         timestamp: new Date()
       }
       setMessages([welcomeMessage])
+      setMessageCounter(1)
       setError(null)
 
       if (voiceEnabled) {
@@ -126,11 +155,10 @@ export default function Chatbot() {
     utterance.onstart = () => setIsSpeaking(true)
     utterance.onend = () => {
       setIsSpeaking(false)
-      if (recognitionRef.current && isChatbotEnabled) {
-        setTimeout(() => {
-          recognitionRef.current.start()
-        }, 500)
-      }
+    }
+
+    utterance.onerror = () => {
+      setIsSpeaking(false)
     }
 
     window.speechSynthesis.speak(utterance)
@@ -143,13 +171,20 @@ export default function Chatbot() {
       return
     }
 
-    if (isListening) {
+    if (isListeningRef.current) {
       recognitionRef.current.stop()
+      isListeningRef.current = false
       setIsListening(false)
     } else {
       setInputValue("")
       setError(null)
-      recognitionRef.current.start()
+      isListeningRef.current = true
+      try {
+        recognitionRef.current.start()
+      } catch (e) {
+        console.error("Error starting recognition:", e)
+        isListeningRef.current = false
+      }
     }
   }
 
@@ -157,8 +192,43 @@ export default function Chatbot() {
   const handleSendMessage = async (messageText = inputValue) => {
     if (!messageText.trim()) return
 
+    // Check if user is asking to navigate to a page
+    const lowerText = messageText.toLowerCase()
+    if (lowerText.includes("open freehand") || 
+        lowerText.includes("freehand drawing") ||
+        lowerText.includes("go to freehand") ||
+        lowerText.includes("go to drawing")) {
+      const navMessage = {
+        id: `msg-${Date.now()}-nav`,
+        text: `🎨 Opening Freehand Drawing page...`,
+        sender: "bot",
+        timestamp: new Date()
+      }
+      setMessages(prev => [...prev, navMessage])
+      setInputValue("")
+      setTimeout(() => navigateToPage("freehand"), 1000)
+      return
+    }
+
+    if (lowerText.includes("open pixel") || 
+        lowerText.includes("pixel editor") ||
+        lowerText.includes("go to editor") ||
+        lowerText.includes("go to pixel")) {
+      const navMessage = {
+        id: `msg-${Date.now()}-nav`,
+        text: `✏️ Opening Pixel Editor page...`,
+        sender: "bot",
+        timestamp: new Date()
+      }
+      setMessages(prev => [...prev, navMessage])
+      setInputValue("")
+      setTimeout(() => navigateToPage("pixel"), 1000)
+      return
+    }
+
+    const newCounter = messageCounter + 1
     const userMessage = {
-      id: messages.length + 1,
+      id: `msg-${Date.now()}-user-${newCounter}`,
       text: messageText,
       sender: "user",
       timestamp: new Date()
@@ -168,14 +238,20 @@ export default function Chatbot() {
     setInputValue("")
     setIsLoading(true)
     setError(null)
+    setMessageCounter(newCounter)
 
     try {
       const systemPrompt = `You are a helpful AI assistant for PixelArt Studio, a web application for creating digital art.
 
-IMPORTANT: Respond in the SAME LANGUAGE the user uses:
-- If user writes in Hindi, respond in Hindi
-- If user writes in English, respond in English
-- If user writes in any other language, respond in that same language
+IMPORTANT INSTRUCTIONS:
+1. Respond in the SAME LANGUAGE the user uses:
+   - If user writes in Hindi, respond in Hindi
+   - If user writes in English, respond in English
+   - If user writes in any other language, respond in that same language
+
+2. When user asks to open pages like "open freehand", "open pixel editor", etc:
+   - The system will handle navigation automatically
+   - Just respond naturally
 
 Features of PixelArt Studio:
 - Pixel Editor: Grid-based art creation (1-64 pixels), color picker, undo/redo, PNG export
@@ -210,14 +286,16 @@ Provide helpful, friendly tips. Keep responses concise (2-3 sentences). Use emoj
         throw new Error(response.data.error || "Failed to get response")
       }
 
+      const newCounter2 = newCounter + 1
       const botMessage = {
-        id: messages.length + 2,
+        id: `msg-${Date.now()}-bot-${newCounter2}`,
         text: response.data.message,
         sender: "bot",
         timestamp: new Date()
       }
 
       setMessages(prev => [...prev, botMessage])
+      setMessageCounter(newCounter2)
 
       if (voiceEnabled) {
         speakMessage(botMessage.text)
@@ -233,6 +311,8 @@ Provide helpful, friendly tips. Keep responses concise (2-3 sentences). Use emoj
         errorMsg += "Rate limited - please wait a moment"
       } else if (error.response?.status === 401) {
         errorMsg += "Authentication error - check API key"
+      } else if (error.response?.status === 404) {
+        errorMsg += "Model not found - please try again"
       } else if (error.message === "Network Error") {
         errorMsg += "Cannot connect to server - is backend running on port 5000?"
       } else if (error.response?.data?.error) {
@@ -243,14 +323,16 @@ Provide helpful, friendly tips. Keep responses concise (2-3 sentences). Use emoj
 
       setError(errorMsg)
 
+      const newCounter2 = newCounter + 1
       const errorBotMessage = {
-        id: messages.length + 2,
+        id: `msg-${Date.now()}-error-${newCounter2}`,
         text: errorMsg,
         sender: "bot",
         timestamp: new Date()
       }
 
       setMessages(prev => [...prev, errorBotMessage])
+      setMessageCounter(newCounter2)
     } finally {
       setIsLoading(false)
     }
@@ -266,6 +348,7 @@ Provide helpful, friendly tips. Keep responses concise (2-3 sentences). Use emoj
     setInputValue("")
     setError(null)
     setShowSettings(false)
+    setMessageCounter(0)
   }
 
   return (
@@ -364,6 +447,8 @@ Provide helpful, friendly tips. Keep responses concise (2-3 sentences). Use emoj
                       <li>💬 Or type your message</li>
                       <li>🌐 Supports Hindi, English & more</li>
                       <li>🔊 Toggle voice response on/off</li>
+                      <li>🎨 Say "open freehand" to open drawing page</li>
+                      <li>✏️ Say "open pixel editor" to open editor</li>
                     </ul>
                   </div>
                 </>
