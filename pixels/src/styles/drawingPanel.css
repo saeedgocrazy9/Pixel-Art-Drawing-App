@@ -26,7 +26,7 @@
   border-radius: 12px;
   overflow: hidden;
   box-shadow: 0 12px 40px rgba(233, 69, 96, 0.2);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.3s;
 }
 
 #pixels:hover {
@@ -35,7 +35,6 @@
   transform: translateY(-2px);
 }
 
-/* Export Container */
 .export-container {
   display: flex;
   flex-direction: column;
@@ -48,7 +47,6 @@
   border: 2px dashed #e94560;
 }
 
-/* Export Button */
 .export-btn {
   position: relative;
   display: flex;
@@ -81,7 +79,6 @@
   transform: translateY(-3px);
 }
 
-/* Loading State */
 .export-btn.loading {
   background: linear-gradient(135deg, #ff9a00 0%, #ffc107 100%);
   box-shadow: 0 10px 28px rgba(255, 154, 0, 0.4);
@@ -97,7 +94,6 @@
   }
 }
 
-/* Success State */
 .export-btn.success {
   background: linear-gradient(135deg, #2ed573 0%, #26de81 100%);
   box-shadow: 0 10px 28px rgba(46, 213, 115, 0.4);
@@ -116,7 +112,6 @@
   }
 }
 
-/* Error State */
 .export-btn.error {
   background: linear-gradient(135deg, #ff4757 0%, #ff6b7a 100%);
   box-shadow: 0 10px 28px rgba(255, 71, 87, 0.4);
@@ -140,7 +135,6 @@
   opacity: 0.95;
 }
 
-/* Button Content */
 .export-btn-content {
   display: flex;
   align-items: center;
@@ -189,7 +183,6 @@
   font-size: 1rem;
 }
 
-/* Shine Effect */
 .export-btn-shine {
   position: absolute;
   top: 0;
@@ -220,7 +213,6 @@
   }
 }
 
-/* Notification */
 .export-notification {
   display: flex;
   align-items: center;
@@ -264,7 +256,6 @@
   text-align: center;
 }
 
-/* Loading State */
 .export-notification.loading {
   background-color: rgba(255, 154, 0, 0.15);
   color: #ffc107;
@@ -272,7 +263,6 @@
   box-shadow: 0 4px 12px rgba(255, 154, 0, 0.2);
 }
 
-/* Success State */
 .export-notification.success {
   background-color: rgba(46, 213, 115, 0.15);
   color: #2ed573;
@@ -282,7 +272,6 @@
              fadeOutNotification 0.4s ease-out 2.1s forwards;
 }
 
-/* Error State */
 .export-notification.error {
   background-color: rgba(255, 71, 87, 0.15);
   color: #ff4757;
@@ -299,7 +288,12 @@
   }
 }
 
-@media (max-width: 768px) {
+/* ========================================
+   RESPONSIVE DESIGN - DRAWING PANEL
+   ======================================== */
+
+/* Tablets (768px - 1024px) */
+@media (max-width: 1024px) {
   #drawingPanel {
     gap: 16px;
     margin-top: 16px;
@@ -335,20 +329,34 @@
     padding: 10px 16px;
     font-size: 0.9rem;
   }
+
+  #pixels {
+    border-radius: 10px;
+  }
 }
 
-@media (max-width: 480px) {
+/* Small Tablets (600px - 768px) */
+@media (max-width: 768px) {
+  #drawingPanel {
+    gap: 14px;
+    margin-top: 14px;
+  }
+
+  .export-container {
+    padding: 14px;
+    gap: 10px;
+    border-radius: 10px;
+  }
+
   .export-btn {
-    width: 100%;
-    min-width: unset;
-    padding: 12px 24px;
+    min-width: 200px;
+    padding: 12px 28px;
     font-size: 0.9rem;
   }
 
   .export-btn:not(:disabled):hover {
-    width: 100%;
-    min-width: unset;
-    padding: 12px 32px;
+    min-width: 220px;
+    padding: 12px 36px;
   }
 
   .export-icon {
@@ -361,6 +369,105 @@
   }
 
   .export-notification {
+    min-width: 180px;
+    padding: 9px 14px;
+    font-size: 0.85rem;
+  }
+
+  #pixels {
+    border-width: 2px;
+    border-radius: 8px;
+  }
+}
+
+/* Mobile (480px - 600px) */
+@media (max-width: 600px) {
+  #drawingPanel {
+    gap: 12px;
+    margin-top: 12px;
+  }
+
+  .export-container {
+    padding: 12px;
+    gap: 8px;
+    border-radius: 8px;
+  }
+
+  .export-btn {
+    width: 100%;
+    min-width: unset;
+    padding: 11px 24px;
+    font-size: 0.85rem;
+  }
+
+  .export-btn:not(:disabled):hover {
+    width: 100%;
+    min-width: unset;
+    padding: 11px 28px;
+  }
+
+  .export-icon {
+    width: 20px;
+    height: 20px;
+  }
+
+  .export-text {
+    font-size: 0.85rem;
+  }
+
+  .export-notification {
     width: 90%;
+    padding: 8px 12px;
+    font-size: 0.8rem;
+  }
+
+  #pixels {
+    border-width: 2px;
+  }
+}
+
+/* Small Mobile (< 480px) */
+@media (max-width: 480px) {
+  #drawingPanel {
+    gap: 10px;
+    margin-top: 10px;
+  }
+
+  .export-container {
+    padding: 10px;
+    gap: 6px;
+    border-radius: 6px;
+  }
+
+  .export-btn {
+    width: 100%;
+    min-width: unset;
+    padding: 10px 20px;
+    font-size: 0.8rem;
+    border-radius: 8px;
+  }
+
+  .export-btn:not(:disabled):hover {
+    width: 100%;
+    min-width: unset;
+  }
+
+  .export-icon {
+    width: 18px;
+    height: 18px;
+  }
+
+  .export-text {
+    font-size: 0.8rem;
+  }
+
+  .export-notification {
+    width: 95%;
+    padding: 7px 10px;
+    font-size: 0.75rem;
+  }
+
+  #pixels {
+    border-width: 2px;
   }
 }

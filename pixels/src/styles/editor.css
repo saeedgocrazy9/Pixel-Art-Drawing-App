@@ -138,7 +138,6 @@
   transform: translateY(-2px);
 }
 
-/* Undo/Redo Section */
 .undo-redo-section {
   width: 100%;
   padding: 16px 24px;
@@ -270,18 +269,35 @@
   margin-left: 8px;
 }
 
-@media (max-width: 768px) {
+/* ========================================
+   RESPONSIVE DESIGN - EDITOR
+   ======================================== */
+
+/* Tablets (768px - 1024px) */
+@media (max-width: 1024px) {
   #editor {
-    gap: 16px;
+    gap: 20px;
+    max-width: 100%;
   }
 
   .editor-header h1 {
     font-size: 1.8rem;
+    gap: 8px;
+  }
+
+  .editor-header p {
+    font-size: 0.9rem;
   }
 
   .setup-section,
   .editor-tools {
-    padding: 16px;
+    padding: 20px;
+    border-radius: 10px;
+  }
+
+  .setup-section h2 {
+    font-size: 1rem;
+    margin-bottom: 15px;
   }
 
   #options {
@@ -290,6 +306,69 @@
 
   .option {
     min-width: 120px;
+    gap: 8px;
+  }
+
+  .option label {
+    font-size: 0.8rem;
+  }
+
+  .panelInput {
+    width: 90px;
+    padding: 10px;
+    font-size: 0.95rem;
+  }
+
+  .primary-button {
+    padding: 12px 32px;
+    font-size: 0.95rem;
+    gap: 8px;
+  }
+
+  .undo-redo-section {
+    padding: 12px 16px;
+    gap: 10px;
+  }
+
+  .undo-redo-btn {
+    padding: 8px 14px;
+    font-size: 0.8rem;
+    gap: 6px;
+  }
+
+  .history-info {
+    font-size: 0.8rem;
+    padding: 6px 12px;
+  }
+}
+
+/* Small Tablets (600px - 768px) */
+@media (max-width: 768px) {
+  #editor {
+    gap: 16px;
+  }
+
+  .editor-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .editor-header p {
+    font-size: 0.85rem;
+  }
+
+  .setup-section,
+  .editor-tools {
+    padding: 16px;
+  }
+
+  #options {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .option {
+    width: 100%;
+    min-width: unset;
   }
 
   .primary-button {
@@ -298,13 +377,65 @@
   }
 
   .undo-redo-section {
+    flex-direction: column;
     padding: 12px;
-    gap: 8px;
   }
 
   .undo-redo-btn {
-    padding: 8px 14px;
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Mobile (480px - 600px) */
+@media (max-width: 600px) {
+  #editor {
+    gap: 12px;
+  }
+
+  .editor-header h1 {
+    font-size: 1.3rem;
+    gap: 6px;
+  }
+
+  .editor-header h1 svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .editor-header p {
     font-size: 0.8rem;
+  }
+
+  .setup-section,
+  .editor-tools {
+    padding: 12px;
+    border-radius: 8px;
+  }
+
+  .setup-section h2 {
+    font-size: 0.95rem;
+    margin-bottom: 12px;
+  }
+
+  .option label {
+    font-size: 0.75rem;
+  }
+
+  .panelInput {
+    width: 80px;
+    padding: 8px;
+    font-size: 0.9rem;
+  }
+
+  .primary-button {
+    padding: 10px 20px;
+    font-size: 0.85rem;
+  }
+
+  .undo-redo-btn {
+    padding: 7px 12px;
+    font-size: 0.7rem;
   }
 
   .undo-redo-btn span {
@@ -313,6 +444,78 @@
 
   .history-info {
     font-size: 0.75rem;
-    padding: 6px 12px;
+    padding: 5px 10px;
+  }
+
+  .color-header {
+    font-size: 0.9rem;
+    gap: 8px;
+  }
+
+  .color-header span {
+    font-size: 1.2rem;
+  }
+}
+
+/* Small Mobile (< 480px) */
+@media (max-width: 480px) {
+  #editor {
+    gap: 10px;
+  }
+
+  .editor-header h1 {
+    font-size: 1.1rem;
+    gap: 4px;
+  }
+
+  .editor-header h1 svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .editor-header p {
+    font-size: 0.75rem;
+  }
+
+  .setup-section,
+  .editor-tools {
+    padding: 10px;
+  }
+
+  #options {
+    gap: 10px;
+  }
+
+  .option {
+    gap: 6px;
+  }
+
+  .option label {
+    font-size: 0.7rem;
+  }
+
+  .panelInput {
+    width: 70px;
+    padding: 6px;
+    font-size: 0.85rem;
+  }
+
+  .primary-button {
+    padding: 8px 16px;
+    font-size: 0.8rem;
+  }
+
+  .undo-redo-section {
+    padding: 10px;
+    gap: 6px;
+  }
+
+  .undo-redo-btn {
+    padding: 6px 10px;
+    font-size: 0.65rem;
+  }
+
+  .color-picker-section {
+    gap: 12px;
   }
 }

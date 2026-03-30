@@ -125,12 +125,6 @@
   box-shadow: 0 0 16px rgba(233, 69, 96, 0.4);
 }
 
-.brush-select option {
-  background-color: #16213e;
-  color: #fff;
-  padding: 8px;
-}
-
 .size-slider {
   width: 100%;
   height: 8px;
@@ -156,17 +150,6 @@
 .size-slider::-webkit-slider-thumb:hover {
   transform: scale(1.2);
   box-shadow: 0 6px 12px rgba(233, 69, 96, 0.4);
-}
-
-.size-slider::-moz-range-thumb {
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #e94560, #ff6b7a);
-  cursor: pointer;
-  border: 3px solid #fff;
-  box-shadow: 0 4px 8px rgba(233, 69, 96, 0.3);
-  transition: all 0.2s;
 }
 
 .control-actions {
@@ -284,13 +267,19 @@
   box-shadow: 0 16px 48px rgba(233, 69, 96, 0.25);
 }
 
-@media (max-width: 768px) {
+/* ========================================
+   RESPONSIVE DESIGN - FREEHAND CANVAS
+   ======================================== */
+
+/* Tablets (768px - 1024px) */
+@media (max-width: 1024px) {
   .freehand-container {
-    gap: 16px;
+    gap: 18px;
   }
 
   .freehand-header h1 {
     font-size: 1.8rem;
+    gap: 8px;
   }
 
   .freehand-header p {
@@ -298,13 +287,10 @@
   }
 
   .freehand-controls {
-    grid-template-columns: 1fr;
-    padding: 16px;
+    grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+    padding: 18px;
     gap: 12px;
-  }
-
-  .control-actions {
-    grid-column: 1;
+    border-radius: 10px;
   }
 
   .control-btn {
@@ -313,8 +299,77 @@
   }
 
   .brush-preview-section {
+    padding: 12px 18px;
+    gap: 12px;
+    border-radius: 10px;
+  }
+
+  .brush-preview {
+    max-width: 250px;
+  }
+
+  .drawing-canvas {
+    height: 450px;
+    border-radius: 12px;
+  }
+}
+
+/* Small Tablets (600px - 768px) */
+@media (max-width: 768px) {
+  .freehand-container {
+    gap: 16px;
+  }
+
+  .freehand-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .freehand-header p {
+    font-size: 0.85rem;
+  }
+
+  .freehand-controls {
+    grid-template-columns: 1fr;
+    padding: 16px;
+    gap: 12px;
+  }
+
+  .control-section {
+    gap: 8px;
+  }
+
+  .section-label {
+    font-size: 0.8rem;
+  }
+
+  .color-picker {
+    width: 55px;
+    height: 40px;
+  }
+
+  .color-display {
+    height: 40px;
+  }
+
+  .brush-select {
+    padding: 8px 12px;
+    font-size: 0.9rem;
+  }
+
+  .control-actions {
+    grid-column: 1;
+    gap: 6px;
+  }
+
+  .control-btn {
+    width: 40px;
+    height: 40px;
+  }
+
+  .brush-preview-section {
     flex-direction: column;
     padding: 12px;
+    gap: 10px;
   }
 
   .brush-preview {
@@ -323,26 +378,172 @@
   }
 
   .drawing-canvas {
-    height: 400px;
+    height: 350px;
+    border-radius: 12px;
   }
 }
 
-@media (max-width: 480px) {
+/* Mobile (480px - 600px) */
+@media (max-width: 600px) {
+  .freehand-container {
+    gap: 14px;
+  }
+
   .freehand-header h1 {
-    font-size: 1.4rem;
+    font-size: 1.3rem;
+    gap: 6px;
+  }
+
+  .freehand-header h1 svg {
+    width: 24px;
+    height: 24px;
+  }
+
+  .freehand-header p {
+    font-size: 0.8rem;
   }
 
   .freehand-controls {
     padding: 12px;
+    gap: 10px;
+  }
+
+  .section-label {
+    font-size: 0.75rem;
+    gap: 6px;
+  }
+
+  .section-label svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .color-input-wrapper {
+    gap: 8px;
+  }
+
+  .color-picker {
+    width: 50px;
+    height: 38px;
+  }
+
+  .color-display {
+    height: 38px;
+  }
+
+  .brush-select {
+    padding: 7px 10px;
+    font-size: 0.85rem;
+  }
+
+  .size-slider {
+    height: 6px;
   }
 
   .control-btn {
-    width: 40px;
-    height: 40px;
+    width: 38px;
+    height: 38px;
+  }
+
+  .brush-preview-section {
+    padding: 10px;
+    gap: 8px;
+    border-radius: 8px;
+  }
+
+  .preview-label {
+    font-size: 0.75rem;
   }
 
   .drawing-canvas {
     height: 300px;
+    border-width: 2px;
+    border-radius: 10px;
+  }
+}
+
+/* Small Mobile (< 480px) */
+@media (max-width: 480px) {
+  .freehand-container {
+    gap: 12px;
+  }
+
+  .freehand-header h1 {
+    font-size: 1.1rem;
+    gap: 4px;
+  }
+
+  .freehand-header h1 svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .freehand-header p {
+    font-size: 0.75rem;
+  }
+
+  .freehand-controls {
+    padding: 10px;
+    gap: 8px;
+  }
+
+  .control-section {
+    gap: 6px;
+  }
+
+  .section-label {
+    font-size: 0.7rem;
+    gap: 4px;
+  }
+
+  .section-label svg {
+    width: 14px;
+    height: 14px;
+  }
+
+  .color-input-wrapper {
+    gap: 6px;
+  }
+
+  .color-picker {
+    width: 45px;
+    height: 36px;
+  }
+
+  .color-display {
+    height: 36px;
+  }
+
+  .brush-select {
+    padding: 6px 8px;
+    font-size: 0.8rem;
+    border-radius: 6px;
+  }
+
+  .size-slider {
+    height: 5px;
+  }
+
+  .control-btn {
+    width: 36px;
+    height: 36px;
+    border-width: 1.5px;
+  }
+
+  .brush-preview-section {
+    padding: 8px;
+    gap: 6px;
+    border-radius: 6px;
+    border-width: 1px;
+  }
+
+  .preview-label {
+    font-size: 0.7rem;
+  }
+
+  .drawing-canvas {
+    height: 250px;
+    border-width: 2px;
     border-radius: 8px;
   }
 }
