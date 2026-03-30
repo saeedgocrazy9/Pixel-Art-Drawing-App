@@ -6,6 +6,7 @@
   width: 100%;
   max-width: 1200px;
   padding: 0;
+  margin: 0;
 }
 
 .freehand-header {
@@ -152,6 +153,17 @@
   box-shadow: 0 6px 12px rgba(233, 69, 96, 0.4);
 }
 
+.size-slider::-moz-range-thumb {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #e94560, #ff6b7a);
+  cursor: pointer;
+  border: 3px solid #fff;
+  box-shadow: 0 4px 8px rgba(233, 69, 96, 0.3);
+  transition: all 0.2s;
+}
+
 .control-actions {
   display: flex;
   gap: 8px;
@@ -240,6 +252,7 @@
   flex: 1;
   max-width: 300px;
   transition: all 0.3s;
+  display: block;
 }
 
 .brush-preview:hover {
@@ -247,6 +260,7 @@
   box-shadow: 0 4px 12px rgba(233, 69, 96, 0.2);
 }
 
+/* FIXED: Canvas styling for proper positioning and drawing */
 .drawing-canvas {
   border: 3px solid #e94560;
   border-radius: 16px;
@@ -255,9 +269,26 @@
   display: block;
   touch-action: none;
   user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  
+  /* Fixed width and height */
   width: 100%;
   max-width: 1100px;
-  height: 550px;
+  height: auto;
+  aspect-ratio: 2 / 1;
+  
+  /* Remove any margin/padding */
+  margin: 0;
+  padding: 0;
+  
+  /* Smooth rendering */
+  image-rendering: crisp-edges;
+  image-rendering: pixelated;
+  
+  /* Prevent scaling issues */
+  box-sizing: border-box;
+  
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
   transition: all 0.3s;
 }
@@ -265,6 +296,26 @@
 .drawing-canvas:hover {
   border-color: #ff6b7a;
   box-shadow: 0 16px 48px rgba(233, 69, 96, 0.25);
+}
+
+/* Cursor info styling */
+.cursor-info {
+  padding: 12px 20px;
+  background: linear-gradient(135deg, rgba(46, 213, 115, 0.1) 0%, rgba(46, 213, 115, 0.05) 100%);
+  border-radius: 8px;
+  border: 1px solid #2ed573;
+  text-align: center;
+  margin-top: 10px;
+  width: 100%;
+  max-width: 1100px;
+}
+
+.cursor-info p {
+  font-size: 0.9rem;
+  color: #2ed573;
+  font-weight: 600;
+  margin: 0;
+  letter-spacing: 0.3px;
 }
 
 /* ========================================
@@ -309,8 +360,13 @@
   }
 
   .drawing-canvas {
-    height: 450px;
-    border-radius: 12px;
+    max-width: 100%;
+    height: auto;
+    aspect-ratio: 2 / 1;
+  }
+
+  .cursor-info {
+    max-width: 100%;
   }
 }
 
@@ -378,8 +434,14 @@
   }
 
   .drawing-canvas {
-    height: 350px;
-    border-radius: 12px;
+    max-width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 10;
+    border-width: 2px;
+  }
+
+  .cursor-info {
+    max-width: 100%;
   }
 }
 
@@ -456,9 +518,20 @@
   }
 
   .drawing-canvas {
-    height: 300px;
+    max-width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 12;
     border-width: 2px;
     border-radius: 10px;
+  }
+
+  .cursor-info {
+    max-width: 100%;
+    font-size: 0.75rem;
+  }
+
+  .cursor-info p {
+    font-size: 0.8rem;
   }
 }
 
@@ -542,8 +615,18 @@
   }
 
   .drawing-canvas {
-    height: 250px;
+    max-width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 14;
     border-width: 2px;
     border-radius: 8px;
+  }
+
+  .cursor-info {
+    max-width: 100%;
+  }
+
+  .cursor-info p {
+    font-size: 0.7rem;
   }
 }

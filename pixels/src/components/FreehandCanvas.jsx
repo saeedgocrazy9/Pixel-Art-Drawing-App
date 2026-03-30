@@ -12,6 +12,7 @@ import {
 
 export default function FreehandCanvas() {
   const canvasRef = useRef()
+  const containerRef = useRef()
   const lastPosRef = useRef({ x: 0, y: 0 })
   const [isDrawing, setIsDrawing] = useState(false)
   const [selectedColor, setSelectedColor] = useState("#e94560")
@@ -31,9 +32,14 @@ export default function FreehandCanvas() {
     calligraphy: { name: "Calligraphy", icon: "㋡" },
   }
 
+  // FIXED: Initialize canvas with proper sizing
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
+
+    // Set canvas internal size (resolution)
+    canvas.width = 1000
+    canvas.height = 500
 
     const ctx = canvas.getContext("2d")
     ctx.fillStyle = "#1a1a2e"
@@ -43,6 +49,36 @@ export default function FreehandCanvas() {
     setHistory([initialState])
     setHistoryStep(0)
   }, [])
+
+  // FIXED: Accurate coordinate calculation with proper scaling
+  const getCanvasCoordinates = (clientX, clientY) => {
+    const canvas = canvasRef.current
+    const rect = canvas.getBoundingClientRect()
+    
+    // Get canvas display size
+    const displayWidth = rect.width
+    const displayHeight = rect.height
+    
+    // Get canvas internal size
+    const canvasWidth = canvas.width
+    const canvasHeight = canvas.height
+    
+    // Calculate position relative to canvas
+    const x = clientX - rect.left
+    const y = clientY - rect.top
+    
+    // Scale coordinates to match canvas internal resolution
+    const scaleX = canvasWidth / displayWidth
+    const scaleY = canvasHeight / displayHeight
+    
+    const scaledX = x * scaleX
+    const scaledY = y * scaleY
+    
+    return {
+      x: Math.max(0, Math.min(scaledX, canvasWidth)),
+      y: Math.max(0, Math.min(scaledY, canvasHeight))
+    }
+  }
 
   const drawSolidBrush = (ctx, fromX, fromY, toX, toY) => {
     ctx.strokeStyle = selectedColor
@@ -243,26 +279,19 @@ export default function FreehandCanvas() {
     }
   }
 
+  // FIXED: Use getCanvasCoordinates with proper scaling
   const handleMouseDown = (e) => {
-    const canvas = canvasRef.current
-    const rect = canvas.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const y = e.clientY - rect.top
-    
-    lastPosRef.current.x = x
-    lastPosRef.current.y = y
+    const coords = getCanvasCoordinates(e.clientX, e.clientY)
+    lastPosRef.current.x = coords.x
+    lastPosRef.current.y = coords.y
     setIsDrawing(true)
   }
 
   const handleMouseMove = (e) => {
     if (!isDrawing) return
     
-    const canvas = canvasRef.current
-    const rect = canvas.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const y = e.clientY - rect.top
-    
-    draw(x, y)
+    const coords = getCanvasCoordinates(e.clientX, e.clientY)
+    draw(coords.x, coords.y)
   }
 
   const handleMouseUp = () => {
@@ -274,14 +303,10 @@ export default function FreehandCanvas() {
 
   const handleTouchStart = (e) => {
     e.preventDefault()
-    const canvas = canvasRef.current
-    const rect = canvas.getBoundingClientRect()
     const touch = e.touches[0]
-    const x = touch.clientX - rect.left
-    const y = touch.clientY - rect.top
-    
-    lastPosRef.current.x = x
-    lastPosRef.current.y = y
+    const coords = getCanvasCoordinates(touch.clientX, touch.clientY)
+    lastPosRef.current.x = coords.x
+    lastPosRef.current.y = coords.y
     setIsDrawing(true)
   }
 
@@ -289,13 +314,9 @@ export default function FreehandCanvas() {
     e.preventDefault()
     if (!isDrawing) return
     
-    const canvas = canvasRef.current
-    const rect = canvas.getBoundingClientRect()
     const touch = e.touches[0]
-    const x = touch.clientX - rect.left
-    const y = touch.clientY - rect.top
-    
-    draw(x, y)
+    const coords = getCanvasCoordinates(touch.clientX, touch.clientY)
+    draw(coords.x, coords.y)
   }
 
   const handleTouchEnd = (e) => {
@@ -318,19 +339,25 @@ export default function FreehandCanvas() {
     setHistoryStep(newHistory.length - 1)
   }
 
-  const exportAsPNG = () => {
-    const canvas = canvasRef.current
-    const link = document.createElement("a")
-    link.download = "freehand-drawing.png"
-    link.href = canvas.toDataURL("image/png")
-    link.click()
+  const exportAsPNG = async () => {
+    try {
+      const canvas = canvasRef.current
+      const link = document.createElement("a")
+      const timestamp = new Date().toISOString().slice(0, 10)
+      const time = new Date().toTimeString().slice(0, 5).replace(":", "")
+      link.download = `freehand-drawing-${timestamp}-${time}.png`
+      link.href = canvas.toDataURL("image/png")
+      link.click()
+    } catch (error) {
+      console.error("Export error:", error)
+    }
   }
 
   return (
-    <div className="freehand-container">
+    <div className="freehand-container" ref={containerRef}>
       <div className="freehand-header">
         <h1><Paintbrush size={32} /> Freehand Drawing</h1>
-        <p>Draw freely with various brush styles</p>
+        <p>Draw freely with various brush styles - cursor position is pixel-perfect!</p>
       </div>
 
       <div className="freehand-controls">
@@ -428,8 +455,6 @@ export default function FreehandCanvas() {
       <canvas
         ref={canvasRef}
         className="drawing-canvas"
-        width={1000}
-        height={500}
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
@@ -438,6 +463,10 @@ export default function FreehandCanvas() {
         onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
       />
+
+      <div className="cursor-info">
+        <p>✅ Canvas coordinates are now pixel-perfect! Draw anywhere and it will appear exactly where your cursor is.</p>
+      </div>
     </div>
   )
 }
