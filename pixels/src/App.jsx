@@ -2,6 +2,7 @@ import React, { useState } from "react"
 import "./styles/App.css"
 import Editor from "./components/Editor"
 import FreehandCanvas from "./components/FreehandCanvas"
+import Chatbot from "./components/Chatbot"
 import { PaletteIcon, PenTool } from "lucide-react"
 
 function App() {
@@ -43,6 +44,9 @@ function App() {
       <footer className="footer">
         <p>PixelArt Studio © 2024 | Create & Express</p>
       </footer>
+
+      {/* AI Chatbot - Voice Enabled */}
+      <Chatbot />
     </div>
   )
 }
