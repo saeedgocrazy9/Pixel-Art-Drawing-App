@@ -17,7 +17,10 @@
     "react-color": "^2.19.3",
     "react-dom": "^19.2.4",
     "react-router": "^7.13.2",
-    "react-router-dom": "^7.13.2"
+    "react-router-dom": "^7.13.2",
+    "@mediapipe/hands": "^0.4.1675469240",
+    "@mediapipe/camera_utils": "^0.3.1675466862",
+    "@mediapipe/drawing_utils": "^0.3.1675466124"
   },
   "devDependencies": {
     "@babel/core": "^7.29.0",
@@ -34,3 +37,4 @@
     "vite": "^8.0.1"
   }
 }
+

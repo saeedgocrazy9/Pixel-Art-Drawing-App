@@ -2,8 +2,9 @@ import React, { useState, useEffect } from "react"
 import "./styles/App.css"
 import Editor from "./components/Editor"
 import FreehandCanvas from "./components/FreehandCanvas"
+import HandGestureCanvas from "./components/HandGestureCanvas"
 import Chatbot from "./components/Chatbot"
-import { PaletteIcon, PenTool } from "lucide-react"
+import { PaletteIcon, PenTool, Hand } from "lucide-react"
 
 function App() {
   const [currentPage, setCurrentPage] = useState(1)
@@ -42,6 +43,13 @@ function App() {
               <PenTool size={20} />
               <span>Freehand</span>
             </button>
+            <button
+              className={`nav-btn ${currentPage === 3 ? "active" : ""}`}
+              onClick={() => setCurrentPage(3)}
+            >
+              <Hand size={20} />
+              <span>Hand Gesture</span>
+            </button>
           </div>
         </div>
       </nav>
@@ -49,6 +57,7 @@ function App() {
       <main className="main-content">
         {currentPage === 1 && <Editor />}
         {currentPage === 2 && <FreehandCanvas />}
+        {currentPage === 3 && <HandGestureCanvas />}
       </main>
 
       <footer className="footer">
