@@ -60,7 +60,7 @@ export default function Chatbot() {
   const recognitionRef = useRef(null)
   const isListeningRef = useRef(false)
 
-  const BACKEND_API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api/chat"
+  const BACKEND_API_URL = import.meta.env.VITE_API_URL || "https://pixel-art-drawing-app-1.onrender.com/api/chat"
 
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value))
 
@@ -582,7 +582,7 @@ Provide helpful, friendly tips. Keep responses concise (2-3 sentences). Use emoj
       } else if (error.response?.status === 404) {
         errorMsg += "Model not found - please try again"
       } else if (error.message === "Network Error") {
-        errorMsg += "Cannot connect to server - is backend running on port 5000?"
+        errorMsg += "Cannot connect to server - is backend running?"
       } else if (error.response?.data?.error) {
         errorMsg += error.response.data.error
       } else {
