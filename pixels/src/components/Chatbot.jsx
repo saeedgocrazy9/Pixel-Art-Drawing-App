@@ -60,8 +60,9 @@ export default function Chatbot() {
   const recognitionRef = useRef(null)
   const isListeningRef = useRef(false)
 
-  const BACKEND_API_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api/chat"
 
+// AFTER:
+const BACKEND_API_URL = import.meta.env.VITE_API_URL || "https://pixel-art-drawing-app-1.onrender.com/api/chat"
   const clamp = (value, min, max) => Math.max(min, Math.min(max, value))
 
   const parseColorInput = (value) => {
