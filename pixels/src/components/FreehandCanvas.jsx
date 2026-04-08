@@ -353,6 +353,55 @@ export default function FreehandCanvas() {
     }
   }
 
+  useEffect(() => {
+    const handleAppCommand = (event) => {
+      const command = event.detail
+      if (!command || command.target !== "freehand") return
+
+      switch (command.action) {
+        case "setBrushType": {
+          if (typeof command.brushType === "string" && brushTypes[command.brushType]) {
+            setBrushType(command.brushType)
+          }
+          break
+        }
+        case "setBrushSize": {
+          if (typeof command.brushSize === "number") {
+            setLineWidth(Math.max(1, Math.min(50, command.brushSize)))
+          }
+          break
+        }
+        case "setColor": {
+          if (typeof command.color === "string") {
+            setSelectedColor(command.color)
+          }
+          break
+        }
+        case "undo": {
+          undo()
+          break
+        }
+        case "redo": {
+          redo()
+          break
+        }
+        case "clearCanvas": {
+          clearCanvas()
+          break
+        }
+        case "exportPNG": {
+          exportAsPNG()
+          break
+        }
+        default:
+          break
+      }
+    }
+
+    window.addEventListener("appCommand", handleAppCommand)
+    return () => window.removeEventListener("appCommand", handleAppCommand)
+  }, [history, historyStep, brushType])
+
   return (
     <div className="freehand-container" ref={containerRef}>
       <div className="freehand-header">

@@ -628,6 +628,64 @@ const HandGestureCanvas = () => {
     link.click();
   };
 
+  useEffect(() => {
+    const handleAppCommand = (event) => {
+      const command = event.detail;
+      if (!command || command.target !== "handgesture") return;
+
+      switch (command.action) {
+        case "startCamera":
+          startCamera();
+          break;
+        case "stopCamera":
+          stopCamera();
+          break;
+        case "clearDrawing":
+          clearDrawing();
+          break;
+        case "downloadImage":
+          downloadImage();
+          break;
+        case "setBrushSize":
+          if (typeof command.brushSize === "number") {
+            setBrushSize(Math.max(1, Math.min(60, command.brushSize)));
+          }
+          break;
+        case "setColor":
+          if (typeof command.color === "string") {
+            setColor(command.color);
+            setRainbowMode(false);
+          }
+          break;
+        case "setSensitivity":
+          if (typeof command.sensitivity === "number") {
+            setConfidence(Math.max(0.3, Math.min(0.85, command.sensitivity)));
+          }
+          break;
+        case "setRainbowMode":
+          if (typeof command.value === "boolean") {
+            setRainbowMode(command.value);
+          }
+          break;
+        case "setPinchOnly":
+          if (typeof command.value === "boolean") {
+            setPinchOnly(command.value);
+          }
+          break;
+        case "setSkeleton":
+          if (typeof command.value === "boolean") {
+            setShowSkeleton(command.value);
+          }
+          break;
+        default:
+          break;
+      }
+    };
+
+    window.addEventListener("appCommand", handleAppCommand);
+    return () => window.removeEventListener("appCommand", handleAppCommand);
+  }, [initialized, isRunning]);
+
   const PALETTE = ["#FF6B6B","#FF8E53","#FFD93D","#6BCB77","#4D96FF","#C77DFF","#FF6B9D","#00F5D4","#FFFFFF","#F72585"];
 
   return (

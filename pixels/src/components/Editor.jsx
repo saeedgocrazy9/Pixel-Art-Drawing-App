@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react"
+import React, { useState, useRef, useEffect } from "react"
 import "../styles/editor.css"
 import { CirclePicker } from "react-color"
 import DrawingPanel from "./DrawingPanel"
@@ -77,6 +77,76 @@ export default function Editor() {
     }
   }
 
+  useEffect(() => {
+    const handleAppCommand = (event) => {
+      const command = event.detail
+      if (!command || command.target !== "editor") return
+
+      switch (command.action) {
+        case "setCanvasSize": {
+          if (typeof command.width === "number") {
+            setPanelWidth(Math.max(1, Math.min(64, command.width)))
+          }
+          if (typeof command.height === "number") {
+            setPanelHeight(Math.max(1, Math.min(64, command.height)))
+          }
+          break
+        }
+        case "setCanvasWidth": {
+          if (typeof command.width === "number") {
+            setPanelWidth(Math.max(1, Math.min(64, command.width)))
+          }
+          break
+        }
+        case "setCanvasHeight": {
+          if (typeof command.height === "number") {
+            setPanelHeight(Math.max(1, Math.min(64, command.height)))
+          }
+          break
+        }
+        case "setColor": {
+          if (typeof command.color === "string") {
+            setColor(command.color)
+          }
+          break
+        }
+        case "startDrawing": {
+          if (hideDrawingPanel) {
+            initializeDrawingPanel()
+          }
+          break
+        }
+        case "resetEditor": {
+          if (!hideDrawingPanel) {
+            initializeDrawingPanel()
+          }
+          break
+        }
+        case "undo": {
+          handleUndo()
+          break
+        }
+        case "redo": {
+          handleRedo()
+          break
+        }
+        case "clearCanvas": {
+          handleClearCanvas()
+          break
+        }
+        case "exportPNG": {
+          drawingPanelRef.current?.exportAsPNG?.()
+          break
+        }
+        default:
+          break
+      }
+    }
+
+    window.addEventListener("appCommand", handleAppCommand)
+    return () => window.removeEventListener("appCommand", handleAppCommand)
+  }, [hideDrawingPanel, historyStep, history])
+
   return (
     <div id="editor">
       <div className="editor-header">
@@ -95,8 +165,8 @@ export default function Editor() {
                 min="1"
                 max="64"
                 className="panelInput"
-                defaultValue={panelWidth}
-                onChange={e => setPanelWidth(e.target.value)}
+                value={panelWidth}
+                onChange={e => setPanelWidth(Number(e.target.value))}
               />
             </div>
             <div className="option">
@@ -106,8 +176,8 @@ export default function Editor() {
                 min="1"
                 max="64"
                 className="panelInput"
-                defaultValue={panelHeight}
-                onChange={e => setPanelHeight(e.target.value)}
+                value={panelHeight}
+                onChange={e => setPanelHeight(Number(e.target.value))}
               />
             </div>
           </div>

@@ -41,6 +41,9 @@ const DrawingPanel = forwardRef(({ width, height, selectedColor, onPixelChange }
           pixel.resetToDefault?.()
         }
       })
+    },
+    exportAsPNG: () => {
+      exportAsPNG()
     }
   }))
 
