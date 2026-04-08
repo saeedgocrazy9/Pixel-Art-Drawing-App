@@ -1,137 +1,151 @@
 import React, { useRef, useEffect, useState, useCallback } from "react";
 import { Download, Play, Square, Trash2, Volume2, VolumeX } from "lucide-react";
-import "../styles/HandGestureCanvas.css";
 
-// Adaptive smoothing filter — Kalman-inspired, handles both slow and fast movement
-class AdaptiveFilter {
-  constructor() {
-    this.x = null;
-    this.y = null;
-    this.vx = 0;
-    this.vy = 0;
-    // Process noise (how much we trust prediction vs measurement)
-    this.Q = 0.008;
-    // Measurement noise (how noisy the raw input is)
-    this.R = 0.02;
-    this.Px = 1;
-    this.Py = 1;
+// ─── One Euro Filter: Best-in-class low-latency smoothing ─────────────────────
+class OneEuroFilter {
+  constructor(freq = 60, minCutoff = 1.0, beta = 0.007, dCutoff = 1.0) {
+    this.freq = freq;
+    this.minCutoff = minCutoff;
+    this.beta = beta;
+    this.dCutoff = dCutoff;
+    this.xPrev = null;
+    this.dxPrev = 0;
+    this.tPrev = null;
   }
 
-  update(rawX, rawY) {
-    if (this.x === null) {
-      this.x = rawX;
-      this.y = rawY;
-      return { x: rawX, y: rawY };
+  alpha(cutoff) {
+    const tau = 1.0 / (2 * Math.PI * cutoff);
+    const te = 1.0 / this.freq;
+    return 1.0 / (1.0 + tau / te);
+  }
+
+  filter(x, timestamp) {
+    if (this.xPrev === null) {
+      this.xPrev = x;
+      this.tPrev = timestamp;
+      return x;
     }
+    const elapsed = Math.max(0.001, (timestamp - this.tPrev) / 1000);
+    this.freq = 1.0 / elapsed;
+    this.tPrev = timestamp;
 
-    // Predict (motion-adaptive process noise)
-    const motion = Math.hypot(rawX - this.x, rawY - this.y);
-    const adaptiveQ = this.Q + Math.min(0.02, motion * 0.0002);
-    const predX = this.x + this.vx;
-    const predY = this.y + this.vy;
-    const predPx = this.Px + adaptiveQ;
-    const predPy = this.Py + adaptiveQ;
+    const dx = (x - this.xPrev) * this.freq;
+    const aDeriv = this.alpha(this.dCutoff);
+    const dxHat = aDeriv * dx + (1 - aDeriv) * this.dxPrev;
 
-    // Kalman gain (trust measurement more when movement is fast)
-    const adaptiveR = Math.max(0.004, this.R - Math.min(0.015, motion * 0.00015));
-    const Kx = predPx / (predPx + adaptiveR);
-    const Ky = predPy / (predPy + adaptiveR);
+    const cutoff = this.minCutoff + this.beta * Math.abs(dxHat);
+    const a = this.alpha(cutoff);
+    const xHat = a * x + (1 - a) * this.xPrev;
 
-    // Update
-    const newX = predX + Kx * (rawX - predX);
-    const newY = predY + Ky * (rawY - predY);
-
-    // Velocity estimation (for gesture intent detection)
-    this.vx = this.vx * 0.7 + (newX - this.x) * 0.3;
-    this.vy = this.vy * 0.7 + (newY - this.y) * 0.3;
-
-    this.Px = (1 - Kx) * predPx;
-    this.Py = (1 - Ky) * predPy;
-    this.x = newX;
-    this.y = newY;
-
-    return { x: newX, y: newY };
+    this.dxPrev = dxHat;
+    this.xPrev = xHat;
+    return xHat;
   }
 
   reset() {
-    this.x = null;
-    this.y = null;
-    this.vx = 0;
-    this.vy = 0;
-    this.Px = 1;
-    this.Py = 1;
+    this.xPrev = null;
+    this.dxPrev = 0;
+    this.tPrev = null;
   }
 
   getSpeed() {
-    return Math.hypot(this.vx, this.vy);
+    return Math.abs(this.dxPrev);
   }
 }
 
-// Bézier stroke renderer — draws smooth curves through point history
+class Point2DFilter {
+  constructor() {
+    // Tuned for hand tracking: low minCutoff = smooth, high beta = responsive
+    this.fx = new OneEuroFilter(60, 1.5, 0.01, 1.0);
+    this.fy = new OneEuroFilter(60, 1.5, 0.01, 1.0);
+  }
+  filter(x, y, t) {
+    return { x: this.fx.filter(x, t), y: this.fy.filter(y, t) };
+  }
+  reset() { this.fx.reset(); this.fy.reset(); }
+  getSpeed() { return Math.hypot(this.fx.getSpeed(), this.fy.getSpeed()); }
+}
+
+// ─── Catmull-Rom spline stroke renderer ────────────────────────────────────────
 class StrokeRenderer {
   constructor(ctx) {
     this.ctx = ctx;
     this.points = [];
-    this.maxHistory = 4;
+    this.maxHistory = 6;
   }
 
-  addPoint(x, y, color, size) {
-    this.points.push({ x, y, color, size });
-    if (this.points.length > this.maxHistory) {
-      this.points.shift();
-    }
+  addPoint(x, y, color, size, opacity = 1) {
+    this.points.push({ x, y, color, size, opacity });
+    if (this.points.length > this.maxHistory) this.points.shift();
     this._render();
+  }
+
+  _catmullRomPoint(p0, p1, p2, p3, t) {
+    const t2 = t * t, t3 = t2 * t;
+    return {
+      x: 0.5 * ((2 * p1.x) + (-p0.x + p2.x) * t + (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * t2 + (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * t3),
+      y: 0.5 * ((2 * p1.y) + (-p0.y + p2.y) * t + (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * t2 + (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * t3),
+    };
   }
 
   _render() {
     const pts = this.points;
     if (pts.length < 2) return;
-
     const ctx = this.ctx;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
+    ctx.globalAlpha = pts[pts.length - 1].opacity;
 
     if (pts.length === 2) {
-      ctx.strokeStyle = pts[pts.length - 1].color;
-      ctx.lineWidth = pts[pts.length - 1].size;
+      ctx.strokeStyle = pts[1].color;
+      ctx.lineWidth = pts[1].size;
       ctx.beginPath();
       ctx.moveTo(pts[0].x, pts[0].y);
       ctx.lineTo(pts[1].x, pts[1].y);
       ctx.stroke();
+      ctx.globalAlpha = 1;
       return;
     }
 
-    // Quadratic Bézier through midpoints for smooth strokes
     const last = pts[pts.length - 1];
     ctx.strokeStyle = last.color;
     ctx.lineWidth = last.size;
 
+    // Use Catmull-Rom for smooth curves
+    const n = pts.length;
+    const p0 = pts[Math.max(0, n - 4)];
+    const p1 = pts[Math.max(0, n - 3)];
+    const p2 = pts[n - 2];
+    const p3 = pts[n - 1];
+
     ctx.beginPath();
-    const p0 = pts[pts.length - 3] || pts[pts.length - 2];
-    const p1 = pts[pts.length - 2];
-    const p2 = pts[pts.length - 1];
-
-    const mx1 = (p0.x + p1.x) / 2;
-    const my1 = (p0.y + p1.y) / 2;
-    const mx2 = (p1.x + p2.x) / 2;
-    const my2 = (p1.y + p2.y) / 2;
-
-    ctx.moveTo(mx1, my1);
-    ctx.quadraticCurveTo(p1.x, p1.y, mx2, my2);
+    ctx.moveTo(p1.x, p1.y);
+    const steps = 8;
+    for (let i = 1; i <= steps; i++) {
+      const t = i / steps;
+      const pt = this._catmullRomPoint(p0, p1, p2, p3, t);
+      ctx.lineTo(pt.x, pt.y);
+    }
     ctx.stroke();
+    ctx.globalAlpha = 1;
   }
 
-  reset() {
-    this.points = [];
-  }
+  reset() { this.points = []; }
 }
 
 const HAND_CONNECTIONS = [
-  [0, 1], [1, 2], [2, 3], [3, 4],
-  [0, 5], [5, 6], [6, 7], [7, 8],
-  [0, 9], [9, 10], [10, 11], [11, 12],
-  [0, 13], [13, 14], [14, 15], [15, 16],
-  [0, 17], [17, 18], [18, 19], [19, 20],
+  [0,1],[1,2],[2,3],[3,4],
+  [0,5],[5,6],[6,7],[7,8],
+  [0,9],[9,10],[10,11],[11,12],
+  [0,13],[13,14],[14,15],[15,16],
+  [0,17],[17,18],[18,19],[19,20],
+  [5,9],[9,13],[13,17],
+];
+
+// Gradient color palette for rainbow mode
+const RAINBOW_COLORS = [
+  "#FF6B6B","#FF8E53","#FFD93D","#6BCB77","#4D96FF",
+  "#C77DFF","#FF6B9D","#00F5D4","#F72585","#7209B7",
 ];
 
 const HandGestureCanvas = () => {
@@ -146,23 +160,23 @@ const HandGestureCanvas = () => {
   const animationIdRef = useRef(null);
   const processingFrameRef = useRef(false);
   const lastVideoTimeRef = useRef(-1);
-
-  // Per-hand state: filter + pinch hysteresis + stroke renderer
   const handStateRef = useRef({});
   const lostFramesRef = useRef(0);
   const drawingBufferCanvasRef = useRef(null);
   const drawingBufferContextRef = useRef(null);
   const fpsCounterRef = useRef({ frames: 0, lastTime: Date.now() });
-  const colorRef = useRef("#FFFFFF");
-  const brushSizeRef = useRef(5);
+  const colorRef = useRef("#00F5D4");
+  const brushSizeRef = useRef(6);
   const showSkeletonRef = useRef(true);
   const pinchOnlyRef = useRef(false);
   const confidenceRef = useRef(0.5);
   const confidenceDebounceRef = useRef(null);
+  const rainbowModeRef = useRef(false);
+  const rainbowHueRef = useRef(0);
 
   const [isRunning, setIsRunning] = useState(false);
-  const [color, setColor] = useState("#FFFFFF");
-  const [brushSize, setBrushSize] = useState(5);
+  const [color, setColor] = useState("#00F5D4");
+  const [brushSize, setBrushSize] = useState(6);
   const [isMuted, setIsMuted] = useState(false);
   const [confidence, setConfidence] = useState(0.5);
   const [showSkeleton, setShowSkeleton] = useState(true);
@@ -172,23 +186,22 @@ const HandGestureCanvas = () => {
   const [drawMode, setDrawMode] = useState("HOVER");
   const [fps, setFps] = useState(0);
   const [error, setError] = useState(null);
+  const [rainbowMode, setRainbowMode] = useState(false);
 
   useEffect(() => { colorRef.current = color; }, [color]);
   useEffect(() => { brushSizeRef.current = brushSize; }, [brushSize]);
   useEffect(() => { showSkeletonRef.current = showSkeleton; }, [showSkeleton]);
   useEffect(() => { pinchOnlyRef.current = pinchOnly; }, [pinchOnly]);
+  useEffect(() => { rainbowModeRef.current = rainbowMode; }, [rainbowMode]);
 
   useEffect(() => {
     confidenceRef.current = confidence;
-    // Debounce setOptions to avoid disrupting active MediaPipe session
-    if (confidenceDebounceRef.current) {
-      clearTimeout(confidenceDebounceRef.current);
-    }
+    if (confidenceDebounceRef.current) clearTimeout(confidenceDebounceRef.current);
     confidenceDebounceRef.current = setTimeout(() => {
       if (handsRef.current) {
         handsRef.current.setOptions({
           maxNumHands: 2,
-          modelComplexity: 0,
+          modelComplexity: 1,
           minDetectionConfidence: confidence,
           minTrackingConfidence: confidence,
         });
@@ -196,11 +209,18 @@ const HandGestureCanvas = () => {
     }, 400);
   }, [confidence]);
 
-  const dist2D = (p1, p2, w, h) => {
-    const dx = (p1.x - p2.x) * w;
-    const dy = (p1.y - p2.y) * h;
-    return Math.hypot(dx, dy);
-  };
+  const dist2D = (p1, p2, W, H) => Math.hypot((p1.x - p2.x) * W, (p1.y - p2.y) * H);
+
+  // ─── Fixed: proper mirroring + full canvas coverage ─────────────────────────
+  // Camera: x=0 is left, x=1 is right
+  // Mirrored display: x=0 (camera left) → x=W (display right)
+  //                   x=1 (camera right) → x=0 (display left)
+  // So mirrored display x = (1 - lm.x) * W  ✓
+  // BUT we must NOT clamp aggressively — allow slight overshoot and let canvas clip it
+  const lmToDisplay = (lm, W, H) => ({
+    x: (1 - lm.x) * W,
+    y: lm.y * H,
+  });
 
   const onHandsResults = useCallback((results) => {
     const canvas = canvasRef.current;
@@ -209,13 +229,10 @@ const HandGestureCanvas = () => {
     const overlayCanvas = overlayCanvasRef.current;
     const overlayCtx = overlayContextRef.current;
     if (!canvas || !video || !ctx || !overlayCanvas || !overlayCtx) return;
-
-    // Skip duplicate frames (important for perf at high fps)
     if (video.currentTime === lastVideoTimeRef.current) return;
     lastVideoTimeRef.current = video.currentTime;
 
-    // FPS counter
-    fpsCounterRef.current.frames += 1;
+    fpsCounterRef.current.frames++;
     const now = Date.now();
     if (now - fpsCounterRef.current.lastTime >= 1000) {
       setFps(fpsCounterRef.current.frames);
@@ -223,19 +240,19 @@ const HandGestureCanvas = () => {
       fpsCounterRef.current.lastTime = now;
     }
 
+    const W = canvas.width;
+    const H = canvas.height;
+
     // Draw mirrored video
     ctx.save();
     ctx.scale(-1, 1);
-    ctx.drawImage(video, -canvas.width, 0, canvas.width, canvas.height);
+    ctx.drawImage(video, -W, 0, W, H);
     ctx.restore();
 
-    overlayCtx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+    overlayCtx.clearRect(0, 0, W, H);
     if (drawingBufferCanvasRef.current) {
       overlayCtx.drawImage(drawingBufferCanvasRef.current, 0, 0);
     }
-
-    const W = canvas.width;
-    const H = canvas.height;
 
     if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
       lostFramesRef.current = 0;
@@ -246,81 +263,96 @@ const HandGestureCanvas = () => {
 
       results.multiHandLandmarks.forEach((landmarks, index) => {
         const handedness = results.multiHandedness?.[index];
-        const handLabel =
-          handedness?.label ??
-          handedness?.classification?.[0]?.label ??
-          `hand-${index}`;
+        const rawLabel = handedness?.label ?? handedness?.classification?.[0]?.label ?? `hand`;
+        // Mirror handedness label too (camera mirror flips Left↔Right)
+        const handLabel = rawLabel === "Left" ? "Right" : rawLabel === "Right" ? "Left" : rawLabel;
         const handKey = `${handLabel}-${index}`;
         activeHandKeys.add(handKey);
 
         if (!handStateRef.current[handKey]) {
           handStateRef.current[handKey] = {
-            filter: new AdaptiveFilter(),
-            renderer: null, // created lazily when buffer context exists
+            filter: new Point2DFilter(),
+            renderer: null,
             pinchFrames: 0,
             releaseFrames: 0,
             isPinching: false,
             indexExtFrames: 0,
             isIndexExtended: false,
             wasDrawing: false,
+            _lastX: null,
+            _lastY: null,
+            colorIndex: Math.floor(Math.random() * RAINBOW_COLORS.length),
           };
         }
-
         const state = handStateRef.current[handKey];
-
-        // Lazy-init renderer
         if (!state.renderer && drawingBufferContextRef.current) {
           state.renderer = new StrokeRenderer(drawingBufferContextRef.current);
         }
 
-        // ── Skeleton ──────────────────────────────────────────────
+        // ── Skeleton rendering ────────────────────────────────────────────────
         if (showSkeletonRef.current) {
-          overlayCtx.strokeStyle = "rgba(0, 255, 102, 0.75)";
-          overlayCtx.lineWidth = 2;
+          // Draw connections with gradient color
           HAND_CONNECTIONS.forEach(([s, e]) => {
-            const p1 = landmarks[s];
-            const p2 = landmarks[e];
+            const p1 = lmToDisplay(landmarks[s], W, H);
+            const p2 = lmToDisplay(landmarks[e], W, H);
+            overlayCtx.strokeStyle = "rgba(0,245,212,0.6)";
+            overlayCtx.lineWidth = 1.5;
             overlayCtx.beginPath();
-            overlayCtx.moveTo((1 - p1.x) * W, p1.y * H);
-            overlayCtx.lineTo((1 - p2.x) * W, p2.y * H);
+            overlayCtx.moveTo(p1.x, p1.y);
+            overlayCtx.lineTo(p2.x, p2.y);
             overlayCtx.stroke();
           });
-          overlayCtx.fillStyle = "rgba(0, 255, 102, 0.9)";
-          landmarks.forEach((lm) => {
+          // Finger tip highlights
+          [4, 8, 12, 16, 20].forEach((tipIdx) => {
+            const p = lmToDisplay(landmarks[tipIdx], W, H);
+            overlayCtx.fillStyle = "rgba(255,255,255,0.9)";
             overlayCtx.beginPath();
-            overlayCtx.arc((1 - lm.x) * W, lm.y * H, 3, 0, Math.PI * 2);
+            overlayCtx.arc(p.x, p.y, 5, 0, Math.PI * 2);
+            overlayCtx.fill();
+          });
+          // Other joints
+          landmarks.forEach((lm, i) => {
+            if ([4,8,12,16,20].includes(i)) return;
+            const p = lmToDisplay(lm, W, H);
+            overlayCtx.fillStyle = "rgba(0,245,212,0.85)";
+            overlayCtx.beginPath();
+            overlayCtx.arc(p.x, p.y, 3, 0, Math.PI * 2);
             overlayCtx.fill();
           });
         }
 
-        // ── Landmark positions ────────────────────────────────────
+        // ── Key landmarks ─────────────────────────────────────────────────────
         const indexTip = landmarks[8];
-        const indexMid = landmarks[6];
+        const indexPip = landmarks[6]; // PIP joint (better than MID for curl detection)
+        const indexMcp = landmarks[5];
         const thumbTip = landmarks[4];
-        const wrist = landmarks[0];
-        const midMcp = landmarks[9];
+        const thumbIp  = landmarks[3];
+        const wrist    = landmarks[0];
+        const midMcp   = landmarks[9];
 
-        const rawX = Math.min(W, Math.max(0, (1 - indexTip.x) * W));
-        const rawY = Math.min(H, Math.max(0, indexTip.y * H));
+        // Convert index fingertip to display coords (FIXED: no aggressive clamping)
+        const rawX = (1 - indexTip.x) * W;
+        const rawY = indexTip.y * H;
 
-        // Adaptive Kalman filter
-        const { x: fingerX, y: fingerY } = state.filter.update(rawX, rawY);
+        // One Euro Filter for ultra-smooth, low-latency tracking
+        const t = now;
+        const { x: fingerX, y: fingerY } = state.filter.filter(rawX, rawY, t);
 
-        // ── Pinch detection with hysteresis ───────────────────────
-        const palmScale = Math.max(30, dist2D(wrist, midMcp, W, H));
+        // ── Palm scale (normalized distance for threshold adaptation) ─────────
+        const palmScale = Math.max(40, dist2D(wrist, midMcp, W, H));
+
+        // ── Pinch detection with adaptive thresholds + hysteresis ────────────
         const pinchDist = dist2D(indexTip, thumbTip, W, H);
-        const pinchThreshold = Math.max(20, palmScale * 0.30);
-        const releaseThreshold = pinchThreshold * 1.45; // wider release band
+        const pinchThreshold  = Math.max(22, palmScale * 0.28);
+        const releaseThreshold = pinchThreshold * 1.6;
 
         if (pinchDist < pinchThreshold) {
-          state.pinchFrames = Math.min(state.pinchFrames + 1, 10);
+          state.pinchFrames = Math.min(state.pinchFrames + 1, 8);
           state.releaseFrames = 0;
         } else if (pinchDist > releaseThreshold) {
-          state.releaseFrames = Math.min(state.releaseFrames + 1, 10);
-          state.pinchFrames = Math.max(state.pinchFrames - 1, 0);
+          state.releaseFrames = Math.min(state.releaseFrames + 1, 8);
+          state.pinchFrames = Math.max(state.pinchFrames - 2, 0);
         }
-
-        // Require 2 frames to activate, 3 to deactivate (prevents flicker)
         if (!state.isPinching && state.pinchFrames >= 2) state.isPinching = true;
         if (state.isPinching && state.releaseFrames >= 3) {
           state.isPinching = false;
@@ -328,13 +360,14 @@ const HandGestureCanvas = () => {
           state.releaseFrames = 0;
         }
 
-        // ── Index-extended detection with hysteresis ──────────────
-        const indexExtended = indexTip.y < indexMid.y - 0.02;
-        if (indexExtended) {
-          state.indexExtFrames = Math.min(state.indexExtFrames + 1, 8);
-        } else {
-          state.indexExtFrames = Math.max(state.indexExtFrames - 2, 0);
-        }
+        // ── Index extension detection ─────────────────────────────────────────
+        // Extended = tip higher than PIP and MCP (finger pointing up)
+        const tipHigherThanPip = indexTip.y < indexPip.y - 0.025;
+        const pipHigherThanMcp = indexPip.y < indexMcp.y - 0.01;
+        const indexExtended = tipHigherThanPip && pipHigherThanMcp;
+
+        if (indexExtended) state.indexExtFrames = Math.min(state.indexExtFrames + 1, 8);
+        else               state.indexExtFrames = Math.max(state.indexExtFrames - 2, 0);
         state.isIndexExtended = state.indexExtFrames >= 2;
 
         const isDrawing = pinchOnlyRef.current
@@ -343,50 +376,81 @@ const HandGestureCanvas = () => {
 
         if (isDrawing) anyDrawing = true;
 
-        // ── Cursor ring ───────────────────────────────────────────
+        // ── Cursor visualization ──────────────────────────────────────────────
         const speed = state.filter.getSpeed();
-        const cursorColor = isDrawing ? "#00FF7F" : "#FFD700";
-        const innerR = isDrawing ? 10 : 13;
-        const outerR = isDrawing ? 16 : 20;
+        const cursorColor = state.isPinching ? "#FF6B9D" : state.isIndexExtended ? "#00F5D4" : "#FFD93D";
+        const cursorSize = state.isPinching ? 10 : 14;
 
+        // Outer glow
+        const grad = overlayCtx.createRadialGradient(fingerX, fingerY, 0, fingerX, fingerY, cursorSize * 2.5);
+        grad.addColorStop(0, cursorColor + "60");
+        grad.addColorStop(1, "transparent");
+        overlayCtx.fillStyle = grad;
+        overlayCtx.beginPath();
+        overlayCtx.arc(fingerX, fingerY, cursorSize * 2.5, 0, Math.PI * 2);
+        overlayCtx.fill();
+
+        // Inner ring
         overlayCtx.strokeStyle = cursorColor;
-        overlayCtx.lineWidth = isDrawing ? 2.5 : 2;
+        overlayCtx.lineWidth = isDrawing ? 3 : 2;
         overlayCtx.beginPath();
-        overlayCtx.arc(fingerX, fingerY, innerR, 0, Math.PI * 2);
+        overlayCtx.arc(fingerX, fingerY, cursorSize, 0, Math.PI * 2);
         overlayCtx.stroke();
 
-        overlayCtx.strokeStyle = isDrawing
-          ? "rgba(0, 255, 127, 0.4)"
-          : "rgba(255, 215, 0, 0.35)";
-        overlayCtx.lineWidth = 1.5;
-        overlayCtx.beginPath();
-        overlayCtx.arc(fingerX, fingerY, outerR, 0, Math.PI * 2);
-        overlayCtx.stroke();
+        // Center dot when drawing
+        if (isDrawing) {
+          overlayCtx.fillStyle = cursorColor;
+          overlayCtx.beginPath();
+          overlayCtx.arc(fingerX, fingerY, 4, 0, Math.PI * 2);
+          overlayCtx.fill();
+        }
 
-        // ── Draw stroke ───────────────────────────────────────────
-        if (isDrawing && state.renderer) {
-          // Gap detection: if hand teleported, reset stroke history
-          const prevX = state.filter.x;
-          const prevY = state.filter.y;
-          const jump = Math.hypot(fingerX - (state._lastX ?? fingerX), fingerY - (state._lastY ?? fingerY));
-          if (jump > palmScale * 1.2 && state.wasDrawing) {
-            state.renderer.reset();
-          }
-
-          state.renderer.addPoint(fingerX, fingerY, colorRef.current, brushSizeRef.current);
+        // ── Color selection ───────────────────────────────────────────────────
+        let drawColor;
+        if (rainbowModeRef.current) {
+          rainbowHueRef.current = (rainbowHueRef.current + 1.5) % 360;
+          drawColor = `hsl(${rainbowHueRef.current},100%,60%)`;
         } else {
-          // Reset stroke history on gesture release so next stroke starts fresh
-          if (state.wasDrawing && state.renderer) {
-            state.renderer.reset();
+          drawColor = colorRef.current;
+        }
+
+        // ── Draw stroke ───────────────────────────────────────────────────────
+        if (isDrawing && state.renderer) {
+          const lastX = state._lastX;
+          const lastY = state._lastY;
+          // Teleport detection: if finger jumped > 1.5x palm width, reset stroke
+          if (lastX !== null) {
+            const jump = Math.hypot(fingerX - lastX, fingerY - lastY);
+            if (jump > palmScale * 1.5 && state.wasDrawing) {
+              state.renderer.reset();
+            }
           }
+          // Pressure simulation: size varies with speed (faster = thinner)
+          const speedFactor = Math.max(0.6, 1 - Math.min(speed, 20) / 40);
+          const dynamicSize = brushSizeRef.current * speedFactor;
+          state.renderer.addPoint(fingerX, fingerY, drawColor, dynamicSize, 0.92);
+        } else {
+          if (state.wasDrawing && state.renderer) state.renderer.reset();
         }
 
         state._lastX = fingerX;
         state._lastY = fingerY;
         state.wasDrawing = isDrawing;
+
+        // ── Hand label badge ─────────────────────────────────────────────────
+        const wristDisplay = lmToDisplay(wrist, W, H);
+        overlayCtx.fillStyle = "rgba(0,0,0,0.6)";
+        overlayCtx.beginPath();
+        overlayCtx.roundRect(wristDisplay.x - 25, wristDisplay.y + 10, 50, 20, 4);
+        overlayCtx.fill();
+        overlayCtx.fillStyle = cursorColor;
+        overlayCtx.font = "bold 11px monospace";
+        overlayCtx.textAlign = "center";
+        overlayCtx.fillText(handLabel.toUpperCase(), wristDisplay.x, wristDisplay.y + 24);
+        overlayCtx.textAlign = "left";
       });
 
-      // Remove stale hand states
+      // Clean up stale hands
       Object.keys(handStateRef.current).forEach((key) => {
         if (!activeHandKeys.has(key)) {
           handStateRef.current[key].filter.reset();
@@ -397,8 +461,8 @@ const HandGestureCanvas = () => {
 
       setDrawMode(anyDrawing ? "DRAW" : "HOVER");
     } else {
-      lostFramesRef.current += 1;
-      if (lostFramesRef.current > 5) {
+      lostFramesRef.current++;
+      if (lostFramesRef.current > 8) {
         setHandsDetected(0);
         setDrawMode("HOVER");
         Object.values(handStateRef.current).forEach((s) => {
@@ -418,17 +482,13 @@ const HandGestureCanvas = () => {
           new Promise((resolve, reject) => {
             const s = document.createElement("script");
             s.src = "https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils@0.3.1675466124/drawing_utils.js";
-            s.async = true;
-            s.onload = resolve;
-            s.onerror = () => reject(new Error("Failed to load drawing_utils"));
+            s.async = true; s.onload = resolve; s.onerror = () => reject(new Error("Failed to load drawing_utils"));
             document.head.appendChild(s);
           }),
           new Promise((resolve, reject) => {
             const s = document.createElement("script");
             s.src = "https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/hands.min.js";
-            s.async = true;
-            s.onload = resolve;
-            s.onerror = () => reject(new Error("Failed to load hands"));
+            s.async = true; s.onload = resolve; s.onerror = () => reject(new Error("Failed to load hands"));
             document.head.appendChild(s);
           }),
         ]);
@@ -437,27 +497,22 @@ const HandGestureCanvas = () => {
         if (!window.Hands) throw new Error("MediaPipe Hands not available");
 
         const hands = new window.Hands({
-          locateFile: (file) =>
-            `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${file}`,
+          locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands@0.4.1675469240/${file}`,
         });
-
         hands.setOptions({
           maxNumHands: 2,
-          modelComplexity: 0,
-          minDetectionConfidence: confidenceRef.current,
-          minTrackingConfidence: confidenceRef.current,
+          modelComplexity: 1,    // Higher = better accuracy
+          minDetectionConfidence: 0.5,
+          minTrackingConfidence: 0.5,
         });
-
         hands.onResults(onHandsResults);
         handsRef.current = hands;
         setInitialized(true);
       } catch (err) {
-        setError(`Failed to initialize: ${err.message}`);
+        setError(`Init failed: ${err.message}`);
       }
     };
-
     loadScripts();
-
     return () => {
       if (animationIdRef.current) cancelAnimationFrame(animationIdRef.current);
       if (streamRef.current) streamRef.current.getTracks().forEach((t) => t.stop());
@@ -467,26 +522,18 @@ const HandGestureCanvas = () => {
 
   const startCamera = async () => {
     try {
-      if (!initialized || !handsRef.current) {
-        setError("MediaPipe not ready. Please wait...");
-        return;
-      }
+      if (!initialized || !handsRef.current) { setError("MediaPipe not ready. Please wait..."); return; }
       if (isRunningRef.current) return;
       setError(null);
-
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((t) => t.stop());
-        streamRef.current = null;
-      }
+      if (streamRef.current) { streamRef.current.getTracks().forEach((t) => t.stop()); streamRef.current = null; }
 
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 960 }, height: { ideal: 540 }, facingMode: "user" },
+        video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: "user", frameRate: { ideal: 60 } },
         audio: false,
       });
 
       const video = videoRef.current;
       if (!video) throw new Error("Video element not found");
-
       video.srcObject = stream;
       streamRef.current = stream;
 
@@ -497,19 +544,15 @@ const HandGestureCanvas = () => {
 
       const canvas = canvasRef.current;
       const overlayCanvas = overlayCanvasRef.current;
-      if (!canvas || !overlayCanvas) throw new Error("Canvas element not found");
+      if (!canvas || !overlayCanvas) throw new Error("Canvas not found");
 
       const W = video.videoWidth || 1280;
       const H = video.videoHeight || 720;
-
-      canvas.width = W;
-      canvas.height = H;
-      overlayCanvas.width = W;
-      overlayCanvas.height = H;
+      canvas.width = W; canvas.height = H;
+      overlayCanvas.width = W; overlayCanvas.height = H;
 
       const buf = document.createElement("canvas");
-      buf.width = W;
-      buf.height = H;
+      buf.width = W; buf.height = H;
       drawingBufferCanvasRef.current = buf;
       drawingBufferContextRef.current = buf.getContext("2d");
 
@@ -525,66 +568,39 @@ const HandGestureCanvas = () => {
 
       const processFrame = async () => {
         if (!isRunningRef.current || !handsRef.current) return;
-
-        if (processingFrameRef.current) {
-          animationIdRef.current = requestAnimationFrame(processFrame);
-          return;
+        if (!processingFrameRef.current) {
+          processingFrameRef.current = true;
+          try {
+            await handsRef.current.send({ image: videoRef.current });
+          } catch (e) {
+            console.warn("Frame error:", e);
+          } finally {
+            processingFrameRef.current = false;
+          }
         }
-
-        processingFrameRef.current = true;
-        try {
-          await handsRef.current.send({ image: videoRef.current });
-        } catch (e) {
-          console.error("Frame send error:", e);
-        } finally {
-          processingFrameRef.current = false;
-        }
-
         animationIdRef.current = requestAnimationFrame(processFrame);
       };
-
       processFrame();
       setIsRunning(true);
     } catch (err) {
-      if (err.name === "NotAllowedError") {
-        setError("Camera permission denied. Please allow camera access and try again.");
-      } else if (err.name === "NotFoundError") {
-        setError("No camera found. Please connect a webcam and try again.");
-      } else if (err.name === "NotReadableError") {
-        setError("Camera is busy in another app. Close other camera apps and retry.");
-      } else {
-        setError(`Camera error: ${err.message}`);
-      }
+      const msgs = {
+        NotAllowedError: "Camera permission denied. Please allow camera access.",
+        NotFoundError: "No camera found. Connect a webcam and retry.",
+        NotReadableError: "Camera is busy. Close other camera apps and retry.",
+      };
+      setError(msgs[err.name] || `Camera error: ${err.message}`);
       isRunningRef.current = false;
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((t) => t.stop());
-        streamRef.current = null;
-      }
+      if (streamRef.current) { streamRef.current.getTracks().forEach((t) => t.stop()); streamRef.current = null; }
     }
   };
 
   const stopCamera = () => {
-    try {
-      isRunningRef.current = false;
-      processingFrameRef.current = false;
-      if (animationIdRef.current) {
-        cancelAnimationFrame(animationIdRef.current);
-        animationIdRef.current = null;
-      }
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach((t) => t.stop());
-        streamRef.current = null;
-      }
-      if (videoRef.current) videoRef.current.srcObject = null;
-      setIsRunning(false);
-      setHandsDetected(0);
-      setDrawMode("HOVER");
-      setFps(0);
-      handStateRef.current = {};
-      lostFramesRef.current = 0;
-    } catch (err) {
-      console.error("Error stopping camera:", err);
-    }
+    isRunningRef.current = false;
+    if (animationIdRef.current) { cancelAnimationFrame(animationIdRef.current); animationIdRef.current = null; }
+    if (streamRef.current) { streamRef.current.getTracks().forEach((t) => t.stop()); streamRef.current = null; }
+    if (videoRef.current) videoRef.current.srcObject = null;
+    setIsRunning(false); setHandsDetected(0); setDrawMode("HOVER"); setFps(0);
+    handStateRef.current = {}; lostFramesRef.current = 0;
   };
 
   const clearDrawing = () => {
@@ -594,10 +610,7 @@ const HandGestureCanvas = () => {
     const overlayCtx = overlayContextRef.current;
     if (bufCtx && buf) bufCtx.clearRect(0, 0, buf.width, buf.height);
     if (overlayCtx && overlay) overlayCtx.clearRect(0, 0, overlay.width, overlay.height);
-    // Reset all stroke histories so strokes don't bleed after clear
-    Object.values(handStateRef.current).forEach((s) => {
-      if (s.renderer) s.renderer.reset();
-    });
+    Object.values(handStateRef.current).forEach((s) => { if (s.renderer) s.renderer.reset(); });
   };
 
   const downloadImage = () => {
@@ -605,147 +618,285 @@ const HandGestureCanvas = () => {
     const buf = drawingBufferCanvasRef.current;
     if (!canvas) return;
     const tmp = document.createElement("canvas");
-    tmp.width = canvas.width;
-    tmp.height = canvas.height;
+    tmp.width = canvas.width; tmp.height = canvas.height;
     const tmpCtx = tmp.getContext("2d");
     tmpCtx.drawImage(canvas, 0, 0);
     if (buf) tmpCtx.drawImage(buf, 0, 0);
     const link = document.createElement("a");
     link.href = tmp.toDataURL("image/png");
-    link.download = `hand-gesture-drawing-${Date.now()}.png`;
+    link.download = `gesture-art-${Date.now()}.png`;
     link.click();
   };
 
+  const PALETTE = ["#FF6B6B","#FF8E53","#FFD93D","#6BCB77","#4D96FF","#C77DFF","#FF6B9D","#00F5D4","#FFFFFF","#F72585"];
+
   return (
-    <div className="hand-gesture-container">
-      <div className="gesture-header">
-        <h2>✋ Hand Gesture Drawing Canvas</h2>
-        <p>Move index finger to draw. Pinch mode can be enabled for precision.</p>
+    <div style={{
+      padding: "24px",
+      background: "linear-gradient(135deg, #080812 0%, #0f0f1e 50%, #0a1628 100%)",
+      minHeight: "100vh",
+      fontFamily: "'DM Mono', 'Courier New', monospace",
+      color: "#e0e0ff",
+    }}>
+      {/* Header */}
+      <div style={{ textAlign: "center", marginBottom: "28px" }}>
+        <h2 style={{
+          fontSize: "2rem", fontWeight: 800, margin: 0,
+          background: "linear-gradient(90deg, #00F5D4, #C77DFF, #FF6B9D)",
+          WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+          letterSpacing: "-1px",
+        }}>
+          ✋ Gesture Canvas
+        </h2>
+        <p style={{ color: "#7070a0", marginTop: 8, fontSize: "0.9rem" }}>
+          Point index finger to draw • Pinch for precision • Rainbow mode for fun
+        </p>
       </div>
 
-      {error && <div className="error-banner">{error}</div>}
+      {error && (
+        <div style={{
+          background: "rgba(255,80,80,0.15)", border: "1px solid #ff5050",
+          color: "#ff9090", padding: "12px 16px", borderRadius: 8,
+          marginBottom: 20, fontSize: "0.9rem",
+        }}>{error}</div>
+      )}
 
-      <div className="gesture-content">
-        <div className="canvas-wrapper">
-          <div className="canvas-container">
+      <div style={{ display: "grid", gridTemplateColumns: "1.6fr 1fr", gap: 24, maxWidth: 1800, margin: "0 auto" }}>
+        {/* Canvas */}
+        <div>
+          <div style={{
+            position: "relative", width: "100%", aspectRatio: "16/9",
+            background: "#000", borderRadius: 16, overflow: "hidden",
+            boxShadow: "0 0 0 1px rgba(0,245,212,0.3), 0 20px 60px rgba(0,0,0,0.8), 0 0 80px rgba(0,245,212,0.08)",
+          }}>
             <video ref={videoRef} style={{ display: "none" }} autoPlay playsInline muted />
-            <canvas ref={canvasRef} className="main-canvas" style={{ position: "absolute", top: 0, left: 0, zIndex: 1 }} />
-            <canvas ref={overlayCanvasRef} className="overlay-canvas" style={{ position: "absolute", top: 0, left: 0, zIndex: 2 }} />
+            <canvas ref={canvasRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", zIndex: 1 }} />
+            <canvas ref={overlayCanvasRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", zIndex: 2, cursor: "crosshair" }} />
 
             {!isRunning && (
-              <div className="canvas-overlay">
-                <div className="overlay-content">
-                  <div className="overlay-icon">📷</div>
-                  <h3>Hand Gesture Drawing</h3>
-                  <p>{!initialized ? "⏳ Loading MediaPipe..." : "Click START to enable camera"}</p>
+              <div style={{
+                position: "absolute", inset: 0, background: "rgba(0,0,0,0.85)",
+                display: "flex", alignItems: "center", justifyContent: "center", zIndex: 5,
+                backdropFilter: "blur(8px)",
+              }}>
+                <div style={{ textAlign: "center" }}>
+                  <div style={{ fontSize: "4rem", marginBottom: 12 }}>🎨</div>
+                  <h3 style={{ margin: "0 0 8px", fontSize: "1.4rem", color: "#00F5D4" }}>
+                    {!initialized ? "⏳ Loading AI Model..." : "Ready to Draw"}
+                  </h3>
+                  <p style={{ color: "#6060a0", margin: 0 }}>
+                    {!initialized ? "Downloading MediaPipe Hands..." : "Press START to begin"}
+                  </p>
                 </div>
               </div>
             )}
 
             {isRunning && (
-              <div className="live-indicator">
-                <span className="live-dot"></span>
-                LIVE
+              <div style={{
+                position: "absolute", top: 12, right: 12, zIndex: 10,
+                background: "rgba(255,0,80,0.9)", color: "#fff",
+                padding: "6px 12px", borderRadius: 20, fontSize: "0.8rem",
+                fontWeight: 700, display: "flex", alignItems: "center", gap: 6,
+              }}>
+                <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#fff", display: "inline-block", animation: "pulse 1s infinite" }} />
+                LIVE • {fps} FPS
+              </div>
+            )}
+
+            {/* Mode indicator */}
+            {isRunning && (
+              <div style={{
+                position: "absolute", bottom: 12, left: 12, zIndex: 10,
+                background: drawMode === "DRAW" ? "rgba(0,245,212,0.2)" : "rgba(255,215,0,0.15)",
+                border: `1px solid ${drawMode === "DRAW" ? "#00F5D4" : "#FFD93D"}`,
+                color: drawMode === "DRAW" ? "#00F5D4" : "#FFD93D",
+                padding: "5px 12px", borderRadius: 6, fontSize: "0.8rem", fontWeight: 700,
+              }}>
+                {drawMode === "DRAW" ? "✏️ DRAWING" : "👆 HOVER"}
+              </div>
+            )}
+
+            {isRunning && handsDetected > 0 && (
+              <div style={{
+                position: "absolute", bottom: 12, right: 12, zIndex: 10,
+                background: "rgba(199,125,255,0.2)", border: "1px solid #C77DFF",
+                color: "#C77DFF", padding: "5px 12px", borderRadius: 6,
+                fontSize: "0.8rem", fontWeight: 700,
+              }}>
+                🖐 {handsDetected} {handsDetected === 1 ? "Hand" : "Hands"}
               </div>
             )}
           </div>
+
+          {/* Gesture guide */}
+          <div style={{
+            marginTop: 12, padding: "12px 16px",
+            background: "rgba(0,245,212,0.05)", border: "1px solid rgba(0,245,212,0.15)",
+            borderRadius: 10, display: "flex", gap: 24, flexWrap: "wrap",
+            fontSize: "0.82rem", color: "#8080b0",
+          }}>
+            <span>☝️ <strong style={{ color: "#00F5D4" }}>Index up</strong> = Draw</span>
+            <span>🤏 <strong style={{ color: "#FF6B9D" }}>Pinch</strong> = Precision</span>
+            <span>✊ <strong style={{ color: "#FFD93D" }}>Fist/flat</strong> = Pause</span>
+            <span>🎨 Works on <strong style={{ color: "#C77DFF" }}>full screen</strong> including edges</span>
+          </div>
         </div>
 
-        <div className="control-panel">
-          <section className="control-section">
-            <h3 className="section-title">📷 Camera</h3>
-            <div className="button-group">
-              <button onClick={startCamera} disabled={!initialized || isRunning} className="btn btn-primary">
-                <Play size={18} /><span>START</span>
-              </button>
-              <button onClick={stopCamera} disabled={!isRunning} className="btn btn-danger">
-                <Square size={18} /><span>STOP</span>
-              </button>
-            </div>
-          </section>
+        {/* Control Panel */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
 
-          <section className="control-section">
-            <h3 className="section-title">🎨 Drawing</h3>
-            <div className="control-item">
-              <label>Color</label>
-              <div className="color-input-group">
-                <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="color-input" />
-                <span className="color-code">{color}</span>
+          {/* Camera controls */}
+          <Section title="📷 Camera">
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <Btn onClick={startCamera} disabled={!initialized || isRunning} color="#00F5D4">
+                <Play size={16} /> START
+              </Btn>
+              <Btn onClick={stopCamera} disabled={!isRunning} color="#FF6B9D">
+                <Square size={16} /> STOP
+              </Btn>
+            </div>
+          </Section>
+
+          {/* Color palette */}
+          <Section title="🎨 Color">
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+              {PALETTE.map((c) => (
+                <button key={c} onClick={() => { setColor(c); setRainbowMode(false); }}
+                  style={{
+                    width: 32, height: 32, borderRadius: "50%", background: c, border: "none",
+                    cursor: "pointer", outline: color === c && !rainbowMode ? `3px solid #fff` : "none",
+                    outlineOffset: 2, transition: "transform 0.15s", transform: color === c && !rainbowMode ? "scale(1.2)" : "scale(1)",
+                  }}
+                />
+              ))}
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <input type="color" value={color} onChange={(e) => { setColor(e.target.value); setRainbowMode(false); }}
+                  style={{ width: 32, height: 32, borderRadius: "50%", border: "none", cursor: "pointer", padding: 0, background: "none" }}
+                />
               </div>
             </div>
-            <div className="control-item">
-              <label>Size: {brushSize}px</label>
-              <input type="range" min="1" max="50" step="1" value={brushSize} onChange={(e) => setBrushSize(parseInt(e.target.value, 10))} className="slider" />
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <label style={{ fontSize: "0.85rem", color: "#a0a0c0" }}>🌈 Rainbow Mode</label>
+              <Toggle active={rainbowMode} onClick={() => setRainbowMode(!rainbowMode)} />
             </div>
-          </section>
+          </Section>
 
-          <section className="control-section">
-            <h3 className="section-title">⚙️ Advanced</h3>
-            <div className="control-item">
-              <label>Confidence: {Math.round(confidence * 100)}%</label>
-              <input type="range" min="0.3" max="0.9" step="0.1" value={confidence} onChange={(e) => setConfidence(parseFloat(e.target.value))} className="slider" />
+          {/* Brush */}
+          <Section title="✏️ Brush">
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.85rem", color: "#a0a0c0", marginBottom: 8 }}>
+                <span>Size</span><span style={{ color: "#fff", fontWeight: 700 }}>{brushSize}px</span>
+              </div>
+              <input type="range" min="1" max="60" value={brushSize}
+                onChange={(e) => setBrushSize(parseInt(e.target.value))}
+                style={{ width: "100%", accentColor: "#00F5D4" }} />
             </div>
-            <div className="toggle-item">
-              <label>Skeleton</label>
-              <button onClick={() => setShowSkeleton(!showSkeleton)} className={`toggle-btn ${showSkeleton ? "active" : ""}`}>
-                {showSkeleton ? "ON" : "OFF"}
-              </button>
+            {/* Brush preview */}
+            <div style={{ display: "flex", justifyContent: "center" }}>
+              <div style={{
+                width: Math.max(8, Math.min(brushSize, 60)),
+                height: Math.max(8, Math.min(brushSize, 60)),
+                borderRadius: "50%",
+                background: rainbowMode ? "linear-gradient(135deg,#FF6B6B,#FFD93D,#00F5D4,#C77DFF)" : color,
+                transition: "all 0.2s",
+              }} />
             </div>
-            <div className="toggle-item">
-              <label>Pinch Only</label>
-              <button onClick={() => setPinchOnly(!pinchOnly)} className={`toggle-btn ${pinchOnly ? "active" : ""}`}>
-                {pinchOnly ? "ON" : "OFF"}
-              </button>
-            </div>
-            <div className="toggle-item">
-              <label>Sound</label>
-              <button onClick={() => setIsMuted(!isMuted)} className={`toggle-btn ${!isMuted ? "active" : ""}`}>
-                {isMuted ? <VolumeX size={16} /> : <Volume2 size={16} />}
-              </button>
-            </div>
-          </section>
+          </Section>
 
-          <section className="control-section">
-            <h3 className="section-title">📥 Actions</h3>
-            <div className="button-group">
-              <button onClick={clearDrawing} disabled={!isRunning} className="btn btn-warning">
-                <Trash2 size={18} /><span>CLEAR</span>
-              </button>
-              <button onClick={downloadImage} disabled={!isRunning} className="btn btn-success">
-                <Download size={18} /><span>SAVE</span>
-              </button>
+          {/* Settings */}
+          <Section title="⚙️ Detection">
+            <div style={{ marginBottom: 12 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "0.85rem", color: "#a0a0c0", marginBottom: 6 }}>
+                <span>Sensitivity</span><span style={{ color: "#fff", fontWeight: 700 }}>{Math.round(confidence * 100)}%</span>
+              </div>
+              <input type="range" min="0.3" max="0.85" step="0.05" value={confidence}
+                onChange={(e) => setConfidence(parseFloat(e.target.value))}
+                style={{ width: "100%", accentColor: "#C77DFF" }} />
             </div>
-          </section>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {[
+                { label: "🦴 Skeleton", state: showSkeleton, set: setShowSkeleton },
+                { label: "🤏 Pinch Only", state: pinchOnly, set: setPinchOnly },
+                { label: isMuted ? "🔇 Sound" : "🔊 Sound", state: !isMuted, set: (v) => setIsMuted(!v) },
+              ].map(({ label, state, set }) => (
+                <div key={label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: "0.85rem", color: "#a0a0c0" }}>{label}</span>
+                  <Toggle active={state} onClick={() => set(!state)} />
+                </div>
+              ))}
+            </div>
+          </Section>
 
-          <section className="control-section status-panel">
-            <h3 className="section-title">📊 Status</h3>
-            <div className="status-item">
-              <span>Camera:</span>
-              <span className={isRunning ? "active" : ""}>{isRunning ? "🔴 LIVE" : "⚪ OFF"}</span>
+          {/* Actions */}
+          <Section title="💾 Actions">
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+              <Btn onClick={clearDrawing} disabled={!isRunning} color="#FFD93D">
+                <Trash2 size={16} /> CLEAR
+              </Btn>
+              <Btn onClick={downloadImage} disabled={!isRunning} color="#6BCB77">
+                <Download size={16} /> SAVE
+              </Btn>
             </div>
-            <div className="status-item">
-              <span>Hands:</span>
-              <span>{handsDetected}</span>
-            </div>
-            <div className="status-item">
-              <span>Mode:</span>
-              <span className={drawMode === "DRAW" ? "active" : ""}>{drawMode}</span>
-            </div>
-            <div className="status-item">
-              <span>FPS:</span>
-              <span>{fps}</span>
-            </div>
-          </section>
+          </Section>
         </div>
       </div>
 
-      <div className="info-footer">
-        <p>
-          💡 Extend your index finger to draw freely, or pinch thumb + index for precision mode. The Kalman filter smooths jitter without adding lag.
-        </p>
-      </div>
+      <style>{`
+        @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.4} }
+        input[type=range]{-webkit-appearance:none;height:5px;border-radius:3px}
+        input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:16px;border-radius:50%;background:#fff;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,0.4)}
+        @media(max-width:900px){
+          .gesture-grid{grid-template-columns:1fr!important}
+        }
+      `}</style>
     </div>
   );
 };
+
+// ─── Helper Components ─────────────────────────────────────────────────────────
+const Section = ({ title, children }) => (
+  <div style={{
+    background: "rgba(20,20,40,0.9)", border: "1px solid rgba(255,255,255,0.07)",
+    borderRadius: 12, padding: 18,
+  }}>
+    <div style={{ fontSize: "0.75rem", fontWeight: 700, color: "#6060a0", letterSpacing: "1px", marginBottom: 14, textTransform: "uppercase" }}>
+      {title}
+    </div>
+    {children}
+  </div>
+);
+
+const Btn = ({ onClick, disabled, color, children }) => (
+  <button onClick={onClick} disabled={disabled}
+    style={{
+      padding: "10px 14px", border: `1px solid ${disabled ? "#333" : color}`,
+      borderRadius: 8, background: disabled ? "rgba(50,50,70,0.5)" : `${color}18`,
+      color: disabled ? "#505070" : color, cursor: disabled ? "not-allowed" : "pointer",
+      fontWeight: 700, fontSize: "0.85rem", fontFamily: "inherit",
+      display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+      transition: "all 0.2s",
+    }}
+    onMouseEnter={(e) => { if (!disabled) e.currentTarget.style.background = `${color}30`; }}
+    onMouseLeave={(e) => { if (!disabled) e.currentTarget.style.background = `${color}18`; }}
+  >
+    {children}
+  </button>
+);
+
+const Toggle = ({ active, onClick }) => (
+  <button onClick={onClick}
+    style={{
+      width: 44, height: 24, borderRadius: 12, border: "none", cursor: "pointer",
+      background: active ? "#00F5D4" : "rgba(80,80,120,0.5)",
+      position: "relative", transition: "background 0.3s",
+    }}
+  >
+    <span style={{
+      position: "absolute", top: 3, left: active ? 23 : 3,
+      width: 18, height: 18, borderRadius: "50%", background: "#fff",
+      transition: "left 0.3s", boxShadow: "0 2px 4px rgba(0,0,0,0.3)",
+    }} />
+  </button>
+);
 
 export default HandGestureCanvas;
